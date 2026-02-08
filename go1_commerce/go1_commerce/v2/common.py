@@ -1134,8 +1134,7 @@ def get_page_footer_info(footer_id):
 def send_otp(mobile_no,doctype="Customer"):
 	if mobile_no and not frappe.db.exists("Customers",{"phone":mobile_no}):
 		return {"status":"Failed","message":"Customer not exist."}
-	from frappe.utils.data import add_to_date
-	from frappe.utils import now
+	from frappe.utils import add_to_date, now
 	platform_settings = frappe.get_single('Order Settings')
 	check_exist = frappe.db.get_all("User OTP Verification",filters={"mobile_number":mobile_no})
 	otp_doc = None

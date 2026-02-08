@@ -11,8 +11,21 @@ from frappe.utils import today, encode, nowtime
 from frappe.query_builder import DocType
 import json
 from frappe.desk.reportview import validate_args
-from frappe.model.db_query import check_parent_permission
 from frappe import _
+
+
+def check_parent_permission(parent, child_doctype):
+	"""Check permission for parent doctype of a child table.
+	Replacement for frappe.model.db_query.check_parent_permission removed in Frappe v16."""
+	if parent:
+		if not frappe.has_permission(parent):
+			frappe.throw(_("No permission for {0}").format(_(parent)), frappe.PermissionError)
+	else:
+		if frappe.session.user != "Administrator":
+			frappe.throw(
+				_("ParentDocType is required to access child table: {0}").format(_(child_doctype)),
+				frappe.PermissionError,
+			)
 
 def run_command(commands, doctype, key, cwd='..', docname=' ', after_command=None):
 	verify_whitelisted_call()

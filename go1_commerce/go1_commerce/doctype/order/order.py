@@ -2950,7 +2950,7 @@ def get_list( doctype, fields = None, filters = None, order_by = None, limit_sta
 	:param limit_page_length: Number of records to be returned (default 20)"""
 	from frappe import _
 	from frappe.desk.reportview import validate_args
-	from frappe.model.db_query import check_parent_permission
+	from go1_commerce.utils.utils import check_parent_permission
 	if frappe.is_table(doctype):
 		check_parent_permission(parent, doctype)
 	args = frappe._dict(
