@@ -1,7 +1,6 @@
 # Copyright (c) 2015, Tridots Tech Pvt. Ltd. and Contributors
 # License: GNU General Public License v3. See license.txt
 
-from __future__ import unicode_literals
 
 import frappe
 from frappe import _
@@ -140,7 +139,6 @@ def create_records(data_type='ecommerce', business=None, f_name=None):
 							frappe.log_error(frappe.get_traceback(), 'go1_commerce.utils.setup_wizard.create_records (category creation)')
 					opt['created_records'] = success_cnt
 					result_json.append(opt)
-				frappe.db.commit()
 				frappe.enqueue('go1_commerce.utils.setup_wizard.insert_sample_product_1', data_type=data_type, business=business, f_name=f_name, data_result=data_result.get('name'), result_json=result_json)
 	except Exception as e:
 		frappe.log_error(frappe.get_traceback(), 'go1_commerce.utils.setup_wizard.create_records')

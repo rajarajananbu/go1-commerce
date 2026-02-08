@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-from __future__ import unicode_literals
 import frappe, json
 from frappe import _
 from go1_commerce.utils.setup import get_settings_from_domain, get_theme_settings

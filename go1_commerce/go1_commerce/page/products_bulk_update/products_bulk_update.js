@@ -1,4 +1,16 @@
 frappe.provide('core.bulk_edit');
+
+window.get_category = get_category;
+window.get_image = get_image;
+window.closePopup = closePopup;
+window.InventoryDropUpdate = InventoryDropUpdate;
+window.ActiveDropUpdate = ActiveDropUpdate;
+window.RecomDropUpdate = RecomDropUpdate;
+window.selected_multiselect_lists1 = selected_multiselect_lists1;
+window.select_list_detail = select_list_detail;
+window.disable_select_list = disable_select_list;
+window.selected_lists_values = selected_lists_values;
+
 frappe.pages['products-bulk-update'].on_page_load = function(wrapper) {
     core.bulk_edit = new BulkEdit(wrapper);
     $(document).on('uppyUploadComplete', function(){

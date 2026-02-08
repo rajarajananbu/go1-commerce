@@ -1,9 +1,7 @@
-from __future__ import unicode_literals, print_function
 import frappe, json
 from frappe import _
 from frappe.utils import getdate,get_datetime
 from datetime import datetime
-from six import string_types
 from go1_commerce.utils.utils import get_today_date
 from go1_commerce.utils.utils import get_customer_from_token,other_exception
 from frappe.query_builder import DocType, Field, Order
@@ -297,7 +295,7 @@ def validate_coupon(coupon_code, customer_id, subtotal, total_weight=0, discount
 	try:
 		cart_items = None
 		if ngCart:
-			if isinstance(ngCart, string_types):
+			if isinstance(ngCart, str):
 				ngCart = json.loads(ngCart)
 			cart_items = []
 			for item in ngCart:

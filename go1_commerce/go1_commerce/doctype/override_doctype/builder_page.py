@@ -30,6 +30,7 @@ from werkzeug.routing import Rule
 
 from builder.html_preview_image import generate_preview
 from builder.utils import safer_exec
+from builder.builder.doctype.builder_page.builder_page import BuilderPage as OriginalBuilderPage
 
 MOBILE_BREAKPOINT = 576
 TABLET_BREAKPOINT = 768
@@ -52,7 +53,7 @@ class BuilderPageRenderer(DocumentPage):
 		return False
 
 
-class BuilderPage(WebsiteGenerator):
+class BuilderPage(OriginalBuilderPage):
 	def add_comment(
 		self,
 		comment_type="Comment",
@@ -183,23 +184,32 @@ class BuilderPage(WebsiteGenerator):
 		metatags["keyword"] = frappe.db.get_single_value("Catalog Settings","meta_keywords")
 		if self.route.startswith("pr/"):
 			if frappe.form_dict.route:
-				check_exist = frappe.db.get_all("Product",filters={"route":frappe.form_dict.route})
-				if check_exist:
-					metatags["title"] = frappe.db.get_value("Product",check_exist[0].name,"meta_title")
-					context.title = frappe.db.get_value("Product",check_exist[0].name,"meta_title")
-					metatags["description"] = frappe.db.get_value("Product",check_exist[0].name,"meta_description")
-					p_image = frappe.db.get_value("Product",check_exist[0].name,"image")
-					if p_image:
-						metatags["image"] = p_image
-					metatags["keyword"] = frappe.db.get_value("Product",check_exist[0].name,"meta_keywords") 
+				product = frappe.db.get_value(
+					"Product",
+					{"route": frappe.form_dict.route},
+					["meta_title", "meta_description", "image", "meta_keywords"],
+					as_dict=True,
+				)
+				if product:
+					metatags["title"] = product.meta_title
+					context.title = product.meta_title
+					metatags["description"] = product.meta_description
+					if product.image:
+						metatags["image"] = product.image
+					metatags["keyword"] = product.meta_keywords
 		if self.route.startswith("products/"):
 			if frappe.form_dict.route:
-				check_exist = frappe.db.get_all("Product Category",filters={"route":frappe.form_dict.route})
-				if check_exist:
-					metatags["title"] = frappe.db.get_value("Product Category",check_exist[0].name,"meta_title")
-					context.title = frappe.db.get_value("Product Category",check_exist[0].name,"meta_title")
-					metatags["description"] = frappe.db.get_value("Product Category",check_exist[0].name,"meta_description")
-					metatags["keyword"] = frappe.db.get_value("Product Category",check_exist[0].name,"meta_keywords")
+				category = frappe.db.get_value(
+					"Product Category",
+					{"route": frappe.form_dict.route},
+					["meta_title", "meta_description", "meta_keywords"],
+					as_dict=True,
+				)
+				if category:
+					metatags["title"] = category.meta_title
+					context.title = category.meta_title
+					metatags["description"] = category.meta_description
+					metatags["keyword"] = category.meta_keywords
 		context.metatags = metatags
 
 	def set_favicon(self, context):

@@ -1,4 +1,3 @@
-from __future__ import unicode_literals
 import frappe, os, re, json
 from frappe.website.website_generator import WebsiteGenerator
 from frappe.utils import touch_file, encode
@@ -9,7 +8,6 @@ from pytz import timezone
 from frappe.utils import strip, get_files_path
 import pytz
 from urllib.parse import unquote
-from six import string_types
 from frappe.model.document import Document
 from go1_commerce.utils.setup import get_settings_from_domain
 from frappe.query_builder import DocType, Field, Subquery

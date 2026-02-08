@@ -2,7 +2,6 @@
 # Copyright (c) 2018, info@valiantsystems.com and contributors
 # For license information, please see license.txt
 
-from __future__ import unicode_literals
 from frappe.model.document import Document
 import frappe, json
 import datetime
@@ -19,7 +18,6 @@ class ReturnRequest(Document):
 		self.customer_email = frappe.db.get_value('Customers',self.customer,'email')
 		for x in self.items:
 			frappe.db.set_value('Order Item',x.order_item,'return_created',1)
-			frappe.db.commit()
 		current_status_level = frappe.db.get_value('Return Request Status',self.status,'status_level')
 		ReturnRequestStatus = DocType('Return Request Status')
 		next_status = (
@@ -95,8 +93,6 @@ class ReturnRequest(Document):
 									"stock",
 									updated_quantity
 								)
-			frappe.db.commit()
-		
 		# order_settings = get_settings("Order Settings")
 		# if order_settings.enable_refund_option == 1:
 		# 	doc = make_payment(self.order_id)

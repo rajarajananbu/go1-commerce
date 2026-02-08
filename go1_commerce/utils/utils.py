@@ -8,7 +8,7 @@ from functools import wraps
 from subprocess import Popen, PIPE, STDOUT
 import re, shlex
 from frappe.utils import today, encode, nowtime
-from six import iteritems, text_type, string_types
+from frappe.query_builder import DocType
 import json
 from frappe.desk.reportview import validate_args
 from frappe.model.db_query import check_parent_permission

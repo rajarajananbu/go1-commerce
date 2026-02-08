@@ -1,12 +1,10 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
-from __future__ import unicode_literals, print_function
 import frappe, json, requests, os, re, time, socket, getpass
 from frappe import _
 from frappe.utils import cstr, flt, getdate, nowdate, today, encode, get_url, get_datetime, to_timedelta
 from datetime import date, datetime, timedelta
 from frappe.core.doctype.domain_settings.domain_settings import get_active_domains
-from six import iteritems, text_type, string_types
 import re, shlex
 from subprocess import check_output, Popen, PIPE, STDOUT
 from go1_commerce.utils.utils import verify_whitelisted_call, safe_decode, _close_the_doc

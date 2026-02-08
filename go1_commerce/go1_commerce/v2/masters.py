@@ -1,4 +1,3 @@
-from __future__ import unicode_literals, print_function
 import frappe, json, os
 from frappe import _
 from frappe.utils import get_datetime, getdate
@@ -620,7 +619,6 @@ def upload_file(**kwargs):
 				"content": get_uploaded_file_content(kwargs.get('content'))
 				}).insert(ignore_permissions=True)
 		res.save(ignore_permissions=True)
-		frappe.db.commit()
 		frappe.local.response["status"] = "Success"	
 		frappe.local.response["file_url"] = res.file_url	
 	except frappe.exceptions.ValidationError:

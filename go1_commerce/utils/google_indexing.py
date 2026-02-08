@@ -2,7 +2,6 @@
 # Copyright (c) 2020, Frappe Technologies and contributors
 # For license information, please see license.txt
 
-from __future__ import unicode_literals
 import frappe
 import requests
 import googleapiclient.discovery
@@ -11,7 +10,7 @@ import google.oauth2.credentials
 from frappe import _
 from googleapiclient.errors import HttpError
 from frappe.utils import get_request_site_address
-from six.moves.urllib.parse import quote
+from urllib.parse import quote
 from frappe.integrations.doctype.google_settings.google_settings import get_auth_url
 from go1_commerce.utils.setup import get_theme_settings
 
@@ -50,7 +49,6 @@ def authorize_access(reauthorize=None):
 
 			if "refresh_token" in res:
 				frappe.db.set_value("Web Theme", website_settings.name, "indexing_refresh_token", res.get("refresh_token"))
-				frappe.db.commit()
 
 			frappe.local.response["type"] = "redirect"
 			frappe.local.response["location"] = "/desk#Form/{0}/{1}".format(quote("Web Theme"), website_settings.name)
@@ -73,7 +71,6 @@ def google_callback(code=None):
 		"""Authorization code is sent to callback as per the API configuration."""
 		website_settings = get_theme_settings()
 		frappe.db.set_value("Web Theme", website_settings, "indexing_authorization_code", code)
-		frappe.db.commit()
 
 		authorize_access()
 	except Exception as e:

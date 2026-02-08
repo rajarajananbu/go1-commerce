@@ -1,4 +1,3 @@
-from __future__ import unicode_literals
 import frappe
 from frappe import _
 from frappe.model.mapper import get_mapped_doc
@@ -37,14 +36,12 @@ def release_lockedin_amount():
 						wallet_tra_details = frappe.get_doc("Wallet Transaction",x.name)
 						wallet_tra_details.status = "Approved"
 						wallet_tra_details.save(ignore_permissions = True)
-						frappe.db.commit()
 						return res
 				else:
 					res =  update_wallet(x)
 					wallet_tra_details = frappe.get_doc("Wallet Transaction",x.name)
 					wallet_tra_details.status = "Approved"
 					wallet_tra_details.save(ignore_permissions = True)
-					frappe.db.commit()
 					return res
 		
 		wallet_trans = (
@@ -86,7 +83,7 @@ def release_lockedin_amount():
 					wt.docstatus=2
 					wt.save(ignore_permissions=True)
 	except Exception: 
-		frappe.log_error(title = "Error in release_lockedin_amount",mesaage = frappe.get_traceback() )
+		frappe.log_error(title="Error in release_lockedin_amount", message=frappe.get_traceback())
 
 
 @frappe.whitelist()
@@ -837,7 +834,6 @@ def make_invoice_payment(source_name=None, source=None, target_doc=None):
 @frappe.whitelist()
 def update_docstatus(doctype, docname, statusfield , status,paid_amount = 0):
 	try:
-		frappe.log_error("status",status)
 		doc = frappe.get_doc(doctype, docname)
 		if doctype=="Sales Invoice":
 			doc.status = status
@@ -847,7 +843,6 @@ def update_docstatus(doctype, docname, statusfield , status,paid_amount = 0):
 		else:
 			doc[statusfield] = status
 		doc.save(ignore_permissions=True)
-		frappe.db.commit()
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "accounts.api.update_docstatus")
 

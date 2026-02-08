@@ -1,6 +1,5 @@
 # by gopi on 12/4/24
 
-from __future__ import unicode_literals, print_function
 import frappe, json
 from frappe import _
 from frappe.utils import flt,today 
@@ -305,19 +304,16 @@ class CustomerCart:
 					return check_stock
 				else:
 					wishlist_item_doc.delete()
-					frappe.db.commit()
 			else:
 				check_stock = self.add_item_to_existing_cart(wishlist_item_doc,product_details,customer_cart)
 				if not check_stock.get("status"):
 					return check_stock
-				frappe.db.commit()
 		else:
 			cart = frappe.get_doc({'doctype': 'Shopping Cart','customer': customer,
 								'cart_type': 'Shopping Cart'}).insert(ignore_permissions=True)
 			check_stock = self.add_item_to_existing_cart(wishlist_item_doc,product_details,cart.name)
 			if not check_stock.get("status"):
 				return check_stock
-			frappe.db.commit()
 		return get_customer_cart_items(customer)
 	
 	def update_item_to_existing_cart(self,wishlist_item_doc,product_details,shopping_cart_item):
@@ -400,7 +396,6 @@ class CustomerCart:
 													)
 			if not check_stock.get("status"):
 				return check_stock
-			frappe.db.commit()
 		return {"status":True}
 	
 	def check_customer_cart_exist_in_move_wishlist(self,wishlist_item_doc,product_details,customer_cart):
@@ -428,7 +423,6 @@ class CustomerCart:
 				return check_stock
 			else:
 				wishlist_item_doc.delete()
-				frappe.db.commit()
 		else:
 			check_stock = self.add_item_to_existing_cart(
 														wishlist_item_doc,
@@ -437,7 +431,6 @@ class CustomerCart:
 													)
 			if not check_stock.get("status"):
 				return check_stock
-			frappe.db.commit()
 
 @frappe.whitelist(allow_guest = True)
 def insert_cart_items(params):
@@ -490,10 +483,8 @@ def delete_cart_items(cname,customer_id = None):
 				for del_item in check_free_doc:
 					item_doc = frappe.get_doc('Cart Items', del_item.name)
 					item_doc.delete()
-					frappe.db.commit()
 			item_doc = frappe.get_doc('Cart Items', doc.name)
 			item_doc.delete()
-			frappe.db.commit()
 			parent_doc = frappe.get_doc('Shopping Cart', doc.parent)
 			parent_doc.save(ignore_permissions=True)
 		return get_customer_cart_items(customer)
@@ -513,7 +504,6 @@ def clear_cartitem(customer=None):
 		if cart:
 			CartItems = DocType("Cart Items")
 			delt = (frappe.qb.from_(CartItems).delete().where(CartItems.parent == cart).run())
-			frappe.db.commit()
 			parent_doc = frappe.get_doc('Shopping Cart', cart)
 			parent_doc.tax = 0
 			parent_doc.total = 0

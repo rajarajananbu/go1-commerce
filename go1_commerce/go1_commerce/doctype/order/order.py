@@ -2,7 +2,6 @@
 # Copyright (c) 2018 info@valiantsystems.com and contributors
 # For license information, please see license.txt
 
-from __future__ import unicode_literals
 from urllib.error import HTTPError
 import frappe, json, math, os
 from frappe.query_builder import DocType, functions as fn, Order
@@ -194,7 +193,6 @@ class Order(Document):
 											"stock",
 											updated_quantity
 										)
-					frappe.db.commit()
 				elif has_variants == 1:
 					attr_id = update_variant_id(item.item, item.varaint_txt)
 					ProductVariantCombination = DocType('Product Variant Combination')
@@ -220,7 +218,6 @@ class Order(Document):
 												"stock",
 												updated_quantity
 											)
-							frappe.db.commit() 
 					else:
 						frappe.throw("Please Select varient for the item")
 							
@@ -402,11 +399,9 @@ class Order(Document):
 				.where(Order.name == self.name)
 			)
 			update_query.run()
-			frappe.db.commit()
 		else:
 			self.total_tax_amount = tax
 			frappe.db.set_value(self.doctype,self.name,'total_tax_amount',tax)
-			frappe.db.commit()
 		
 		
 	def shipping_tax_subtotal(self,subtotal):
@@ -614,7 +609,6 @@ class Order(Document):
 					.where(Order.name == self.name)
 				)
 				query.run()
-				frappe.db.commit()
 		self.check_outstanding_balance(self.total_amount,new_disount)
 		workflow = frappe.db.get_all('Workflow', filters={'is_active': 1, 'document_type': 'Order'})
 		if workflow:
@@ -633,7 +627,6 @@ class Order(Document):
 
 					if not check_orders:
 						frappe.db.set_value('Drivers', self.driver, 'working_status', 'Available')
-						frappe.db.commit()
 
 
 	def get_discount_info(self,item,res):
@@ -896,7 +889,6 @@ class Order(Document):
 			self.payment_status = 'Paid'
 			if frappe.db.get_value(self.doctype, self.name, 'docstatus') == 0:
 				frappe.db.set_value(self.doctype,self.name,'docstatus', 1)
-				frappe.db.commit()
 		else:
 			self.payment_status = 'Partially Paid'
 		self.outstanding_amount = outstanding_amount
@@ -906,7 +898,6 @@ class Order(Document):
 			frappe.db.set_value(self.doctype,self.name,'outstanding_amount', self.outstanding_amount)
 			frappe.db.set_value(self.doctype,self.name,'paid_amount', self.paid_amount)
 			frappe.db.set_value(self.doctype,self.name,'payment_status', self.payment_status)
-			frappe.db.commit()
 
 
 	def shipping_charge_tax(self):
@@ -1104,7 +1095,6 @@ class Order(Document):
 									"stock",
 									updated_quantity
 								)
-			frappe.db.commit()
 
 
 	def update_shipmentbag(self):
@@ -1239,7 +1229,6 @@ class Order(Document):
 			self.paid_amount = amount
 			frappe.db.set_value("Order",self.name,"paid_using_wallet",amount)
 			frappe.db.set_value("Order",self.name,"paid_amount",amount)
-			frappe.db.commit()
 
 
 	def auto_debit_wallet(self):
@@ -2383,7 +2372,6 @@ def update_order_totals(order, shipping_charges, discount_amount, Wallet_amount)
 	if flt(order_info.discount)!= flt(discount_amount):
 		frappe.db.set_value('Order', order, 'is_custom_discount', 1)
 	frappe.db.set_value('Order', order, 'paid_using_wallet', Wallet_amount)
-	frappe.db.commit()
 	order_info = frappe.get_doc("Order",order)
 	order_info.save(ignore_permissions=True)
 
@@ -2430,7 +2418,6 @@ def update_order_checkout_attributes(order,attributes):
 								'attribute_id': x.get('checkout_attribute_id'),
 								'attribute_description': x.get('attribute_description')
 							}).insert(ignore_permissions=True)
-	frappe.db.commit()
 	order_info = frappe.get_doc("Order",order)
 	order_info.save(ignore_permissions=True)
 
@@ -2464,7 +2451,6 @@ def update_giftcard_status(order):
 		usage_history.order_id = order.name
 		usage_history.customer = order.customer
 		usage_history.save(ignore_permissions=True)
-		frappe.db.commit()
 
 
 
@@ -2564,7 +2550,6 @@ def get_coupon_discount(order_id,order_subtotal,coupon_code):
 					.where(OrderItem.name == item['name'])
 					.run()
 				)
-			frappe.db.commit()
 			return {
 					"discount_amount":discount_amount,
 					"discount_rule":coupon_data.name,
@@ -2592,7 +2577,6 @@ def get_order_item(order_id, coupon_code,coupon_data,msg,status):
 			.where(OrderItem.name == item['name'])
 			.run()
 		)
-	frappe.db.commit()
 	if coupon_data.free_product:
 		product = frappe.get_doc("Product",coupon_data.free_product)
 		new_order_item = frappe.new_doc("Order Item")
@@ -2641,7 +2625,6 @@ def update_order_items_status(Products, status, OrderId, doctype, Tracking_Numbe
 			order_doc.status = status
 			order_doc.is_admin_updating_order = 1
 			order_doc.save(ignore_permissions=True)
-			frappe.db.commit()
 		if create_shipment:
 			create_order_shipment(doctype, OrderId, Products,Tracking_Number, Tracking_Link, driver)
 	except Exception:

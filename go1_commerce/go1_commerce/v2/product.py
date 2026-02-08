@@ -1,4 +1,3 @@
-from __future__ import unicode_literals, print_function
 import frappe, json, requests
 from frappe import _
 from frappe.utils import flt, getdate, nowdate, get_url,add_days, today
@@ -6,7 +5,6 @@ from datetime import datetime
 from urllib.parse import unquote, urlencode
 from pytz import timezone
 import pytz
-from six import string_types
 from go1_commerce.utils.setup import get_settings_value,get_settings
 from go1_commerce.go1_commerce.v2.category \
 	import get_parent_categories,get_parent_categorie,get_child_categories
@@ -2262,7 +2260,6 @@ def update_attribute_option_images(dn, docs):
 		images_list = sorted(images_list,key=lambda x:x.get('idx'),reverse=False)
 		doc.image_list = json.dumps(images_list)
 		doc.save(ignore_permissions=True)
-		frappe.db.commit()
 
 
 @frappe.whitelist()
@@ -2351,7 +2348,7 @@ def get_product_list_columns():
 @frappe.whitelist()
 def insert_product_queries(data):
 	try:
-		if isinstance(data, string_types):
+		if isinstance(data, str):
 			data = json.loads(data)
 		result = frappe.get_doc({
 			'doctype': 'Product Enquiry',
