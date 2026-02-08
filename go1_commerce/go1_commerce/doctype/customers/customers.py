@@ -2,8 +2,8 @@
 # Copyright (c) 2018, info@valiantsystems.com and contributors
 # For license information, please see license.txt
 
-from __future__ import unicode_literals
-import frappe, json
+import frappe
+import json
 from frappe.utils import nowdate
 from frappe import _
 from frappe.utils.password import update_password as _update_password
@@ -109,7 +109,6 @@ class Customers(NestedSet):
 			catalog_settings = get_settings('Catalog Settings')
 			self.email = self.phone+"@"+catalog_settings.site_name+".com"
 			frappe.db.set_value('Customers', self.name, 'email', self.email)
-			frappe.db.commit()
 		if not self.user_id:
 			if self.email:
 				email = self.email
@@ -166,7 +165,6 @@ class Customers(NestedSet):
 			c_addr.parentfield = "table_6"
 			c_addr.parenttype = "Customers"
 			c_addr.save(ignore_permissions=True)
-			frappe.db.commit()
 
 	def validate_address(self):
 		if self.table_6:
@@ -283,7 +281,6 @@ def insert_user(self):
 	result.append("roles", {"role": "Customer"})
 	result.insert(ignore_permissions=True)
 	frappe.db.set_value('Customers',self.name,'user_id',result.name)
-	frappe.db.commit()
 	return result
 
 def update_password(new_password, logout_all_sessions=0, key=None, old_password=None,user=None):

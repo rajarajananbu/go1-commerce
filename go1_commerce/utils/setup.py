@@ -1,6 +1,5 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
-from __future__ import unicode_literals
 import frappe, json, os, re
 from frappe.utils import get_files_path
 from datetime import datetime
@@ -26,7 +25,7 @@ def get_settings(dt):
 				data = json.loads(f.read())
 				keys = data.keys()
 				for k in keys:
-					if type(data.get(k)) == list:
+					if isinstance(data.get(k), list):
 						child = []
 						for item in data.get(k):
 							child.append(frappe._dict(item))
@@ -63,7 +62,6 @@ def get_condition_field(doc):
 @frappe.whitelist(allow_guest=True)
 def get_subdomain(url):
 	try:
-		import frappe
 		import tldextract
 		cur_domain = frappe.local.request.host_url.split('/')[-2:][0]
 		info = tldextract.extract(cur_domain)
@@ -78,7 +76,6 @@ def get_subdomain(url):
 		return url
 
 def save_file(doc, folder=None):
-	from six import text_type
 	"""write file to disk with a random name (to compare)"""
 	file_path = get_files_path(is_private=doc.is_private)
 	frappe.create_folder(file_path)
@@ -86,7 +83,7 @@ def save_file(doc, folder=None):
 		if not os.path.exists(os.path.join(file_path, folder)):
 			frappe.create_folder(os.path.join(file_path, folder))
 	doc.content = doc.get_content()
-	if isinstance(doc.content, text_type):
+	if isinstance(doc.content, str):
 		doc.content = doc.content.encode()
 	if folder:
 		with open(os.path.join(file_path.encode('utf-8'), folder.encode('utf-8'), doc.file_name.encode('utf-8')),'wb+') as f:
@@ -102,23 +99,14 @@ def save_file(doc, folder=None):
 @frappe.whitelist(allow_guest=True)
 def get_favicon_for_domain(dt):
 	favicon=""
-	settings = frappe.db.sql('''select name from `tab{0}` '''.format(dt), as_dict=1)
+	settings = frappe.db.get_all(dt, fields=['name'], limit=1)
 	if settings:
 		seting = frappe.get_doc(dt, settings[0].name)
 		if seting.theme:
-			favicon =  frappe.db.get_value("Web Theme", seting.theme, 'favicon')
+			favicon = frappe.db.get_value("Web Theme", seting.theme, 'favicon')
 		else:
 			if frappe.db.get_value("Web Theme", {"is_active":1}, 'favicon'):
-				favicon =  frappe.db.get_value("Web Theme", {"is_active":1}, 'favicon')
-	settings = frappe.db.sql('''select name from `tab{0}` where name!= ""'''.format(dt), as_dict=1)
-	if settings:
-		seting =  frappe.get_doc(dt, settings[0].name)
-		if seting.theme:
-			if seting.theme:
-				favicon = frappe.db.get_value("Web Theme", seting.theme, 'favicon')
-			else:
-				if frappe.db.get_value("Web Theme", {"is_active":1}, 'favicon'):
-					favicon = frappe.db.get_value("Web Theme", {"is_active":1}, 'favicon')
+				favicon = frappe.db.get_value("Web Theme", {"is_active":1}, 'favicon')
 	return favicon
 
 
@@ -183,19 +171,25 @@ def delete_api_logs():
 	try:
 		enable_api_log = frappe.db.get_single_value('Order Settings', 'enable_api_logs')
 		if enable_api_log:
-			logs = frappe.db.sql('''select group_concat(concat('"', name, '"')) from `tabAPI Log` where creation < date_sub(curdate(), interval 7 day) order by creation limit 100''')
-			if logs and logs[0] and logs[0][0]:
-				frappe.db.sql('''delete from `tabApi Log Group` where parent in ({name})'''.format(name=logs[0][0]))
-				frappe.db.sql('''delete from `tabAPI Log` where name in ({name})'''.format(name=logs[0][0]))
+			logs = frappe.db.get_all('API Log',
+				filters={'creation': ['<', frappe.utils.add_days(frappe.utils.today(), -7)]},
+				fields=['name'], order_by='creation', limit=100)
+			if logs:
+				names = [l.name for l in logs]
+				frappe.db.delete('Api Log Group', filters={'parent': ['in', names]})
+				frappe.db.delete('API Log', filters={'name': ['in', names]})
 	except Exception as e:
 		frappe.log_error(frappe.get_traceback(), 'go1_commerce.utils.setup.delete_api_logs')
 
 @frappe.whitelist()
 def delete_executed_command_logs():
 	try:
-		logs = frappe.db.sql('''select group_concat(concat('"', name, '"')) from `tabExecuted Command` where creation < date_sub(curdate(), interval 30 day) order by creation limit 100''')
-		if logs and logs[0] and logs[0][0]:
-			frappe.db.sql('''delete from `tabExecuted Command` where name in ({name})'''.format(name=logs[0][0]))
+		logs = frappe.db.get_all('Executed Command',
+			filters={'creation': ['<', frappe.utils.add_days(frappe.utils.today(), -30)]},
+			fields=['name'], order_by='creation', limit=100)
+		if logs:
+			names = [l.name for l in logs]
+			frappe.db.delete('Executed Command', filters={'name': ['in', names]})
 	except Exception as e:
 		frappe.log_error(frappe.get_traceback(), 'go1_commerce.utils.setup.delete_executed_command_logs')
 
@@ -209,9 +203,9 @@ def get_theme_settings():
 
 @frappe.whitelist()
 def read_file_from_url(url):
-	import urllib
+	import urllib.request
 
-	f = urllib.urlopen(url)
+	f = urllib.request.urlopen(url)
 	file = f.read().decode('utf-8')
 	data = json.loads(file)
 	return data
@@ -265,7 +259,7 @@ def validate_google_settings(doc, method):
 @frappe.whitelist()
 def update_help_articles():
 	apps = frappe.get_installed_apps()
-	modules_list = frappe.db.sql(''' select * from `tabModule Def` where app_name in ({}) '''.format(','.join(['"' + x + '"' for x in apps])), as_dict=True)
+	modules_list = frappe.get_all('Module Def', filters={'app_name': ['in', apps]}, fields=['*'])
 	for module in modules_list:
 		path = frappe.get_module_path(module.module_name)
 		file_path = os.path.join(path, 'help_desk', 'help_article.json')
@@ -301,9 +295,9 @@ def clear_logs():
 	for x in range(10):
 		filelist.append("frappe.log."+str(x))
 	for y in range(10):
-		filelist.append("web.error.log."+str(x))
+		filelist.append("web.error.log."+str(y))
 	for z in range(10):
-		filelist.append("web.log."+str(x))
+		filelist.append("web.log."+str(z))
 	commands=[]
 	for files in filelist:
 		commands.append("find . -name '{files}' -exec rm -f {} \;".format(files=files))

@@ -1,9 +1,7 @@
-from __future__ import unicode_literals, print_function
 import frappe,json
 from frappe import _
 from frappe.utils import flt, getdate,nowdate
 from datetime import datetime
-from six import string_types
 from go1_commerce.utils.setup import get_settings
 from go1_commerce.utils.utils import \
 	role_auth,customer_reg_auth,get_auth_token,get_customer_from_token,\
@@ -710,7 +708,6 @@ def validate_cancel_order(Orders,customer_id,**kwargs):
 				wallet_doc.locked_in_amount=locked_in
 				wallet_doc.total_wallet_amount=total_wallet
 				wallet_doc.save(ignore_permissions=True)
-		frappe.db.commit()
 		return {"status":"Success",
 			"message": "Order Cancel Successfully"}
 
@@ -783,16 +780,13 @@ def delete_viewed_products(customer_id, name, product):
 		customer_viewed_product.product = product
 		customer_viewed_product.viewed_date = getdate(nowdate())
 		customer_viewed_product.save(ignore_permissions=True)
-		frappe.db.commit()
 	else:
 		check_already_viewed_update = check_already_viewed[0]
 		customer_viewed_product = frappe.get_doc('Customer Viewed Product', check_already_viewed_update.name)
 		customer_viewed_product.viewed_date = getdate(nowdate())
 		customer_viewed_product.save(ignore_permissions=True)
-		frappe.db.commit()
 	remove_product = frappe.get_doc('Customer Viewed Product', name)
 	remove_product.delete()
-	frappe.db.commit()
 
 def customer_login(phone):
 	usr = frappe.db.get_all("Customers",
@@ -994,7 +988,6 @@ def delete_address(id, customer):
 				.where(CustomerAddress.name == addr[0].name)
 			)
 			query.run()
-			frappe.db.commit()
 			return 'Success'
 	except Exception:
 		frappe.log_error(message=frappe.get_traceback(), title='v2.customer.delete_address')
@@ -1085,7 +1078,7 @@ def update_address(data):
 @frappe.whitelist(allow_guest=True)
 def insert_customers(data):
 	try:
-		if isinstance(data, string_types):
+		if isinstance(data, str):
 			data = json.loads(data)
 		responsedata = data
 		parent_customer = None

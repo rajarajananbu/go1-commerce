@@ -1,11 +1,9 @@
-from __future__ import unicode_literals, print_function
 import frappe, json, os
 import frappe.modules
 from frappe import _,STANDARD_USERS
 from frappe.utils import now,now_datetime, get_formatted_email,get_files_path
 from datetime import date, datetime, timedelta
 from pytz import timezone
-from six import  string_types
 from go1_commerce.utils.utils import get_auth_token,get_customer_from_token,\
 	other_exception
 from go1_commerce.utils.setup import get_settings_value, get_settings
@@ -14,7 +12,6 @@ from frappe.query_builder import DocType, Order
 @frappe.whitelist()
 def generate_all_settings(doc,method):
 	try:
-		frappe.log_error("check settings","settings")
 		res_data = 	{
 						"catalog_settings":(frappe.get_single("Catalog Settings")).as_dict(),
 						"order_settings":(frappe.get_single("Order Settings")).as_dict(),
@@ -671,7 +668,6 @@ def validate_route(customer,application_type,page_no,page_size,route,page_type):
 		check_builder = frappe.db.get_all('Web Page Builder', 
 											filters={"route":route}, 
 											fields=['name', 'page_type','w_page_type','route'])
-		frappe.log_error("Web Page builder",check_builder)
 		if check_builder:
 			page_type = check_builder[0].w_page_type
 			if check_builder[0].page_type !="List" and check_builder[0].page_type != "Detail":
@@ -1155,7 +1151,6 @@ def send_otp(mobile_no,doctype="Customer"):
 		otp_doc.otp=generate_random_nos(platform_settings.otp_length)
 		otp_doc.expiry_on=add_to_date(now(),seconds=int(platform_settings.otp_expiry),as_datetime=True)
 	otp_doc.save(ignore_permissions=True)
-	frappe.db.commit()
 	return {"status":"Success","message":"OTP sent successfully."}
 
 @frappe.whitelist(allow_guest=True)
@@ -1233,7 +1228,6 @@ def customer_registration_login(phone):
 				import uuid
 				cus_reg.uuid  = uuid.uuid4().hex
 				cus_reg.save(ignore_permissions=True)
-				frappe.db.commit()
 			return {'type':'Customer Registration',
 					'data':cus_reg,
 					'status':"Success",
@@ -1244,7 +1238,6 @@ def customer_registration_login(phone):
 			cus_reg.phone = phone
 			cus_reg.uuid  = uuid.uuid4().hex
 			cus_reg.save(ignore_permissions=True)
-			frappe.db.commit()
 			return {'type':'Customer Registration',
 					'data':cus_reg,
 					'status':"Success",
@@ -1258,7 +1251,6 @@ def customer_registration_login(phone):
 		cus_reg.new_password  = pwd
 		cus_reg.customer_status = status
 		cus_reg.save(ignore_permissions=True)
-		frappe.db.commit()
 		token = get_auth_token(email)
 		if token:
 			has_role = frappe.db.get_all('Has Role',
@@ -1364,7 +1356,6 @@ def generate_option_unique_names():
 			option_route = cleanup_page_name(x.option_value.lower().strip())
 			option_route = option_route.replace("-","_")
 			frappe.db.set_value("Product Attribute Option",x.name,"unique_name",attr_route+"_"+option_route)
-		frappe.db.commit()
 	except Exception:
 		frappe.log_error(title = "Error in generate_option_unique_names", message = frappe.get_traceback())
 
@@ -1372,7 +1363,6 @@ def generate_option_unique_names():
 def get_city_based_role():
 	m_settings = frappe.get_single("Market Place Settings")
 	roles = ",".join(['"' + x.role + '"' for x in m_settings.city_based_role])
-	frappe.log_error("roles",roles)
 	return roles
 
 @frappe.whitelist()
@@ -1394,7 +1384,6 @@ def generate_combination_options():
 								"product_id": v.parent,
 								"combination_id": v.name,
 								"option_id":opt}).insert()
-		frappe.db.commit()
 	except Exception:
 		frappe.log_error(title = "Error in generate_combination_options", message = frappe.get_traceback())
 
@@ -1414,7 +1403,6 @@ def update_device_id(doctype,docname,device_id,role):
 			device_doc = frappe.get_doc("App Alert Device",device_list[0].name)
 			device_doc.device_id = device_id
 			device_doc.save(ignore_permissions=True)
-	frappe.db.commit()
 
 @frappe.whitelist(allow_guest=True)
 def get_blog_list(category=None,page_no=1,page_size=12):
@@ -1460,7 +1448,7 @@ def get_blog_details(route):
 		BlogPost = DocType('Blog Post')
 		Blogger = DocType('Blogger')
 		blog_details_query = (
-			frape.qb.from_(BlogPost)
+			frappe.qb.from_(BlogPost)
 			.left_join(Blogger)
 			.on(Blogger.name == BlogPost.blogger)
 			.select(
@@ -1511,7 +1499,7 @@ def get_blog_details(route):
 def insert_blog_comments(data):
 	try:
 		doc = data
-		if isinstance(doc, string_types):
+		if isinstance(doc, str):
 				doc = json.loads(doc)
 		response=doc
 		blog=frappe.new_doc('Blog Comments')
@@ -1766,8 +1754,7 @@ def boot_session(bootinfo):
 @frappe.whitelist()
 def insert_doc(data):
 	try:
-		from six import string_types
-		if isinstance(data, string_types):
+		if isinstance(data, str):
 			data = json.loads(data)
 		keys = data.keys()
 		insert_doc = frappe.new_doc(data.get('doctype'))
@@ -1782,8 +1769,7 @@ def insert_doc(data):
 @frappe.whitelist()
 def update_doc(data):
 	try:
-		from six import string_types
-		if isinstance(data, string_types):
+		if isinstance(data, str):
 			data = json.loads(data)
 		keys = data.keys()
 		if frappe.db.exists(data.get('doctype'), data.get('name')):

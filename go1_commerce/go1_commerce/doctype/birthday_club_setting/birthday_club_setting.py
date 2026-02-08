@@ -3,7 +3,6 @@
 # For license information, please see license.txt
 
 
-from __future__ import unicode_literals
 import frappe
 from frappe import _
 from frappe.utils import getdate, nowdate, add_days
@@ -36,7 +35,6 @@ def update_birthday_club_discount(self):
 		.delete()
 		.where(DiscountRequirements.parent == self.discount_id)
 		.run())
-	frappe.db.commit()
 	frappe.get_doc({
 				'doctype': 'Discount Requirements',
 				'parent':self.discount_id,
@@ -46,7 +44,6 @@ def update_birthday_club_discount(self):
 				'items_list':"[{\"item\":\"BirthDay Club Member\",\"item_name\":\"BirthDay Club Member\",\
 																							\"idx\":1}]",
 			}).insert(ignore_permissions=True)
-	frappe.db.commit()
 	if self.discount_type == "Discount Amount":
 		frappe.get_doc({
 						'doctype': 'Discount Requirements',
@@ -56,9 +53,6 @@ def update_birthday_club_discount(self):
 						'parenttype':"Discounts",
 						'amount_to_be_spent':self.discount_amount,
 					}).insert(ignore_permissions=True)
-	
-		frappe.db.commit()
-	frappe.db.commit()
 	discount = frappe.get_doc("Discounts",self.discount_id)
 	discount.percent_or_amount = self.discount_type
 	discount.discount_percentage = self.discount_percentage
@@ -92,8 +86,6 @@ def create_birthday_club_discount(self):
 							"coupon_code":self.coupon_code,
 							"is_birthday_club_discount":1,
 							})
-	discount.save()
-	frappe.db.commit()
 	discount.save()
 	return discount
 

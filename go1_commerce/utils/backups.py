@@ -3,7 +3,6 @@
 
 """This module handles the On Demand Backup utility"""
 
-from __future__ import unicode_literals, print_function
 
 #Imports
 from frappe import _

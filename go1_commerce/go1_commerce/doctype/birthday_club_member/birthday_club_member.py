@@ -3,7 +3,6 @@
 # For license information, please see license.txt
 
 
-from __future__ import unicode_literals
 import frappe
 from frappe.model.document import Document
 from frappe.utils import getdate,add_days
@@ -27,7 +26,6 @@ class BirthDayClubMember(Document):
 								'parentfield':"customer_role",
 								'parenttype':"Customers",
 								'role':"BirthDay Club Member" }).insert(ignore_permissions=True)
-				frappe.db.commit()
 			customer = frappe.get_doc("Customers",customers[0].name)
 			customer.save(ignore_permissions=True)
 		else:

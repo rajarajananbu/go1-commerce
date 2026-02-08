@@ -2,7 +2,6 @@
 # Copyright (c) 2018, info@valiantsystems.com and contributors
 # For license information, please see license.txt
 
-from __future__ import unicode_literals
 import frappe
 import json
 import math
@@ -13,7 +12,6 @@ from go1_commerce.go1_commerce.v2.common \
 	import get_today_date
 from go1_commerce.utils.setup import get_settings_value
 from urllib.parse import unquote
-from six import string_types
 from frappe.query_builder import DocType,Order, Field, functions as fn
 from frappe.query_builder import Case
 from frappe.query_builder.functions import IfNull, Count, Date
@@ -221,7 +219,7 @@ def get_product_discount(product, qty = 1, rate = None, customer_id = None, attr
 	except Exception:
 		pass
 	if attribute_id:
-		if isinstance(attribute_id, string_types):
+		if isinstance(attribute_id, str):
 			if attribute_id.find('[')!=-1:
 				attribute_id = json.loads(attribute_id)
 				if isinstance(attribute_id, list) and len(attribute_id) == 1:

@@ -1,7 +1,6 @@
 # Copyright (c) 2024, Tridotstech Private Ltd. and contributors
 # For license information, please see license.txt
 
-from __future__ import unicode_literals
 import frappe, re, os
 from frappe.model.document import Document
 from frappe.utils import get_files_path

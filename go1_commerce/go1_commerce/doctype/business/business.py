@@ -2,7 +2,6 @@
 # Copyright (c) 2018, info@valiantsystems.com and contributors
 # For license information, please see license.txt
 
-from __future__ import unicode_literals
 import frappe,string, random
 from frappe.website.website_generator import WebsiteGenerator
 from go1_commerce.utils.setup import get_settings

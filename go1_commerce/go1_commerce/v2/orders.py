@@ -1,17 +1,20 @@
-from __future__ import unicode_literals, print_function
 import datetime
 from datetime import datetime
-import frappe, json, requests, os, socket, math
+import frappe
+import json
+import requests
+import os
+import socket
+import math
 from frappe import _
 from frappe.utils import flt, getdate, nowdate
 from frappe.model.mapper import get_mapped_doc
 from urllib.parse import unquote
-from six import string_types
 from go1_commerce.utils.setup import get_settings_value
-from go1_commerce.utils.utils import role_auth,check_mandatory_exception,\
-	get_customer_from_token,other_exception,doesnotexist_exception,permission_exception
+from go1_commerce.utils.utils import role_auth, check_mandatory_exception,\
+	get_customer_from_token, other_exception, doesnotexist_exception, permission_exception
 from frappe.query_builder import DocType, Field, Order
-from frappe.query_builder.functions import IfNull,Function, GroupConcat, Sum
+from frappe.query_builder.functions import IfNull, Function, GroupConcat, Sum
 
 @frappe.whitelist()
 def make_sales_invoice(source_name, target_doc = None, submit = False):
@@ -493,7 +496,6 @@ def insert_discount_usage_history(order, customer, discount):
 											'customer': customer,
 											'date_range': date_range
 											}).insert(ignore_permissions=True)
-			frappe.db.commit()
 	except Exception:
 		other_exception("api.insert_discount_usage_history")
 
@@ -532,8 +534,7 @@ def debit_customer_wallet(cust_id, order_amount, order_id):
 			update_order.outstanding_amount = outstanding_amount
 			try:
 				update_order.save(ignore_permissions=True)
-			except:
-				
+			except Exception:
 				Order = DocType('Order')
 				update_query = (
 					frappe.qb.update(Order)
@@ -545,8 +546,7 @@ def debit_customer_wallet(cust_id, order_amount, order_id):
 					})
 					.where(Order.name == order_id)
 				)
-				
-			frappe.db.commit()
+
 	except Exception:
 		other_exception("Error in v2.orders.debit_customer_wallet")
 
@@ -1319,7 +1319,6 @@ def get_shipping_methods(request,order,order_id,order_total):
 				.where(OrderCheckoutAttributes.name == x.name)
 			)
 			query.run()
-			frappe.db.commit()
 	get_checkout_attributes_html(request,order)
 	order_info = order.as_dict()
 	return order_info
@@ -1345,7 +1344,6 @@ def get_checkout_attributes_html(request,order):
 		order.discount_coupon = request.get('coupon_code')
 	order.customer_ip = frappe.get_request_header('X-Forwarded-For')
 	order.save(ignore_permissions=True)
-	frappe.db.commit()
 
 
 def get_items_item(cart):
@@ -1474,7 +1472,6 @@ def set_gift_card_order(cart_item,order_info):
 						'order_reference':order_info.name,
 						'giftcart_coupon_code':str(code)[0:13]
 						}).insert(ignore_permissions=True)
-		frappe.db.commit()
 
 
 def discount_free_products(request,order_info,item_weight,tax_splitup,tax_type,
@@ -3151,7 +3148,6 @@ def edit_order(order_id, customer=None):
 		cart = frappe.db.get_all('Shopping Cart',
 									filters = {'customer':customer,'cart_type':'Shopping Cart'})
 		edit_cart_items(cart, order, order_id, customer)
-		frappe.db.commit()
 		return {
 				"status":"Success"
 			}
@@ -3203,7 +3199,6 @@ def validate_cart(wallet_list,order_id,order,cart):
 		doc = frappe.get_doc('Wallet Transaction', item.name)
 		doc.docstatus = 2
 		doc.save(ignore_permissions=True)
-	frappe.db.commit()
 	for x in order.order_item:
 		if x.is_free_item != 1:
 			result = frappe.get_doc({	"doctype": "Cart Items",
@@ -3255,14 +3250,12 @@ def update_order(data):
 						base_price = values[1]
 						get_order_itm_list(order_info,cart_item,item_sku,item_weight,total,item_tax,
 									discount,base_price)
-						frappe.db.commit()
 				validate_order_data(order_id,request)
 				order_info = frappe.get_doc('Order', order_id)
 				order_info.save(ignore_permissions=True)
 				
 				CartItem = DocType('Cart Item')
 				frappe.qb.from_(CartItem).delete().where(CartItem.parent == cart[0].name).run()
-				frappe.db.commit()
 				return {
 						"status":"Success",
 						"order_id": order_info.name,
@@ -3648,7 +3641,6 @@ def get_reorder_list(order,cart_doc):
 				if not p_price:no_stock = 1
 				if p_price:price = p_price[0].price
 			allowed_prdts = cart_items_append(cart_doc,x,price,no_stock,allowed_prdts)
-	frappe.db.commit()
 	message = "Successfully added into your Cart"
 	if no_stock == 1:
 		message = "Some of the items in the previous order is out of stock."
@@ -3784,7 +3776,6 @@ def create_return_request(**kwargs):
 			return_doc.save(ignore_permissions = True)
 			order_details.status = "Returned"
 			order_details.save(ignore_permissions = True)
-			frappe.db.commit()
 			if data.get("driver"):
 				if frappe.db.exists("Drivers",data.get("driver")):
 					create_return_shipment(return_doc,data.get("driver"))
@@ -3815,9 +3806,8 @@ def get_order_invoices(order_id, customer_id=None):
 			Order = DocType('Order')
 			upt =(frappe.qb.update(Order) 
 				.set(Order.uuid, token) 
-				.where(Order.name == order_id) 
+				.where(Order.name == order_id)
 				.run())
-			frappe.db.commit()
 		url_string = frappe.utils.get_url()+'/api/method/go1_commerce.\
 							go1_commerce.v2.orders.get_invoices?token='+str(token)
 		return {
@@ -3960,6 +3950,5 @@ def set_quantity_variants(doc, quantity, allow = 0):
 								"Product Variant Combination",
 								variant_stock.name,
 								"stock",
-								updated_quantity 
+								updated_quantity
 							)
-			frappe.db.commit()

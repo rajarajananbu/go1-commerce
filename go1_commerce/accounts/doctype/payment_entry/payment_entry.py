@@ -2,7 +2,6 @@
 # Copyright (c) 2019, sivaranjani and contributors
 # For license information, please see license.txt
 
-from __future__ import unicode_literals
 import frappe
 from frappe.model.document import Document
 from frappe import _
@@ -50,7 +49,6 @@ class PaymentEntry(Document):
 				payment.payment_status = "Partially Paid"
 		try:
 			payment.save(ignore_permissions=True)
-			frappe.db.commit()
 		except Exception:
 			if d.reference_doctype == "Order":
 				Order = DocType('Order')
@@ -60,7 +58,6 @@ class PaymentEntry(Document):
 					.set(Order.payment_status, payment.payment_status)
 					.where(Order.name == d.reference_name)
 				).run()
-				frappe.db.commit()
 
 	def update_pay_payment_status_and_outstanding(self,d):
 		# if frappe.db.get_value("Purchase Invoice",d.reference_name,"name"):
@@ -91,8 +88,6 @@ class PaymentEntry(Document):
 						.set(Order.payment_status, payment.payment_status)
 						.where(Order.name==d.reference_name)
 					).run()
-					
-			frappe.db.commit()
 
 
 	def on_submit(self):
@@ -103,7 +98,6 @@ class PaymentEntry(Document):
 						is_settlement_paid = frappe.db.get_value(d.reference_doctype,d.reference_name,"is_settlement_paid")
 					if d.reference_doctype == "Wallet Transaction" and is_settlement_paid == 0:
 						frappe.db.set_value(d.reference_doctype,d.reference_name,"is_settlement_paid",1)
-						frappe.db.commit()
 					self.update_receive_payment_status_and_outstanding(d)
 				elif self.payment_type == "Pay":
 					self.update_pay_payment_status_and_outstanding(d)
@@ -147,8 +141,7 @@ class PaymentEntry(Document):
 					paid_after = flt(paid_before) - flt(self.paid_amount)
 					frappe.db.set_value(d.reference_doctype,d.reference_name,"outstanding_amount",outstand_after)
 					frappe.db.set_value(d.reference_doctype,d.reference_name,"paid_amount",paid_after)
-					frappe.db.commit()
-					
+
 					if paid_after == 0:
 						frappe.db.set_value(d.reference_doctype, d.reference_name, 'payment_status', 'Pending')
 					else:
@@ -161,7 +154,6 @@ class PaymentEntry(Document):
 					paid_after = flt(paid_before) - flt(self.paid_amount)
 					frappe.db.set_value("Purchase Invoice",d.reference_name,"outstanding_amount",outstand_after)
 					frappe.db.set_value("Purchase Invoice",d.reference_name,"paid_amount",paid_after)
-					frappe.db.commit()
 					
 				if self.payment_type == 'Pay' and d.reference_doctype == 'Expense Entry':
 					if d.total_amount == d.allocated_amount:
@@ -170,30 +162,25 @@ class PaymentEntry(Document):
 						outstanding = frappe.db.get_value(d.reference_doctype, d.reference_name, 'outstanding_amount')
 						outstanding = outstanding + d.allocated_amount
 						frappe.db.set_value(d.reference_doctype, d.reference_name, 'outstanding_amount', outstanding)
-					frappe.db.commit()
 					
 				if self.payment_type == 'Receive' and d.reference_doctype == 'Membership Payment':
 					frappe.db.set_value(d.reference_doctype, d.reference_name, 'paid', 0)
-					frappe.db.commit()
 
 def validate_payment_type(d, total):
 	if d.reference_doctype == "Purchase Invoice":
 		frappe.db.set_value("Purchase Invoice",d.reference_name,"paid_amount",total)
 		paid = frappe.db.get_value("Purchase Invoice",d.reference_name,"paid_amount")
 		grand = frappe.db.get_value("Purchase Invoice",d.reference_name,"grand_total")
-		frappe.db.commit()
 		if flt(paid) == flt(grand):
 			frappe.db.set_value("Purchase Invoice",d.reference_name,"status","Paid")
 		else:
 			frappe.db.set_value("Purchase Invoice",d.reference_name,"status","Partially Paid")
-		frappe.db.commit()
 	if d.reference_doctype == "Invoice":
 		frappe.db.set_value("Invoice",d.reference_name,"paid_amount",total)
 		paid = frappe.db.get_value("Invoice",d.reference_name,"paid_amount")
 		grand = frappe.db.get_value("Invoice",d.reference_name,"grand_total")
 		if flt(paid) == flt(grand):
 			frappe.db.set_value("Invoice",d.reference_name,"status","Paid")
-		frappe.db.commit()
 	if d.reference_doctype == 'Expense Entry':
 		outstanding = 0
 		if d.allocated_amount == d.total_amount:
@@ -201,7 +188,6 @@ def validate_payment_type(d, total):
 		else:
 			outstanding = d.total_amount - d.allocated_amount
 		frappe.db.set_value(d.reference_doctype, d.reference_name, 'outstanding_amount', outstanding)
-		frappe.db.commit()
 	if d.reference_doctype == 'Order':
 		outstanding = 0
 		if d.allocated_amount == d.total_amount:
@@ -210,7 +196,6 @@ def validate_payment_type(d, total):
 			outstanding = d.total_amount - d.allocated_amount
 		frappe.db.set_value(d.reference_doctype, d.reference_name, 'outstanding_amount', outstanding)
 		# frappe.db.set_value("Invoice",d.reference_name,"payment_status","Paid")
-		frappe.db.commit()
 		if d.reference_doctype == "Order":
 			from go1_commerce.go1_commerce.\
 				doctype.order.order import update_order_shipment_payment

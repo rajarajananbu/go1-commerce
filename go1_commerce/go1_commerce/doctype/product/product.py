@@ -2,7 +2,6 @@
 # Copyright (c) 2018, info@valiantsystems.com and contributors
 # For license information, please see license.txt
 
-from __future__ import unicode_literals
 import frappe, os, re, json
 from frappe.website.website_generator import WebsiteGenerator
 from frappe.utils import touch_file, encode
@@ -14,7 +13,6 @@ from pytz import timezone
 from frappe.utils import get_files_path
 import pytz
 from urllib.parse import unquote
-from six import string_types
 from go1_commerce.utils.setup import get_settings, get_settings_value
 from frappe.desk.reportview import get_match_cond, get_filters_cond
 from frappe.query_builder import DocType, Field, functions as fn, Order
@@ -240,7 +238,6 @@ class Product(WebsiteGenerator):
 					x.brand = self.brand
 			else:
 				self.append("product_brands",{"brand":self.brand})
-			frappe.db.commit()
 		self.update_product_mapping()
 	
 	def insert_combination_mapping(self):
@@ -276,7 +273,6 @@ class Product(WebsiteGenerator):
 											"combination_id": v.name,
 											"option_id":opt,
 										}).insert()
-		frappe.db.commit()  
 
 
 	def update_product_mapping(self):
@@ -289,7 +285,6 @@ class Product(WebsiteGenerator):
 				if not x.unique_name:
 					frappe.db.set_value("Product Brand Mapping",x.name,
 										"unique_name",self.scrub(x.brand))
-			frappe.db.commit()  
 		if self.attribute_options:
 			for x in self.attribute_options:
 				if not x.unique_name:
@@ -304,13 +299,11 @@ class Product(WebsiteGenerator):
 								   filters={"parent":self.name,"product_attribute":x.attribute})
 					if p_attr_id:
 						x.attribute_id = p_attr_id[0].name
-			frappe.db.commit()
 		if self.product_attributes:
 			for x in self.product_attributes:
 				if not x.attribute_unique_name:
 					frappe.db.set_value("Product Attribute Mapping",x.name,
 						 "attribute_unique_name",self.scrub(x.attribute.lstrip()))    
-			frappe.db.commit()
 		if self.product_categories:
 			frappe.enqueue('go1_commerce.\
 				  go1_commerce.doctype.product.product.\
@@ -1654,7 +1647,6 @@ def update_customer_recently_viewed(product, customer=None):
 				customer_viewed_product.viewed_date = getdate(nowdate())
 				customer_viewed_product.viewed_count = 1
 				customer_viewed_product.save(ignore_permissions=True)
-				frappe.db.commit()
 			else:
 				check_already_viewed_update = check_already_viewed[0]
 				customer_viewed_product = frappe.get_doc("Customer Viewed Product", 
@@ -1662,7 +1654,6 @@ def update_customer_recently_viewed(product, customer=None):
 				customer_viewed_product.viewed_date = getdate(nowdate())
 				customer_viewed_product.viewed_count = int(customer_viewed_product.viewed_count) + 1
 				customer_viewed_product.save(ignore_permissions=True)
-				frappe.db.commit()
 
 
 def show_attribute_err(attribute_id):
@@ -2450,7 +2441,7 @@ def get_product_templates(name=None):
 
 def save_gallery_changes(data):
 	doc = data
-	if isinstance(doc, string_types):
+	if isinstance(doc, str):
 		doc = json.loads(doc)
 	ret = frappe.get_doc(doc.get('doc_type'),doc.get('doc_name'))
 	ret.image_name= doc.get('img_name')
@@ -2478,7 +2469,6 @@ def upload_img():
 					"is_private": 0,
 					"content": content})
 			ret.save(ignore_permissions=True)
-			frappe.db.commit()
 			return ret.as_dict()
 	except Exception as e:
 		frappe.log_error(frappe.get_traceback(),"Error in doctype.product.upload_img")
@@ -2618,7 +2608,7 @@ def product_detail_onscroll(productid, layout):
 @frappe.whitelist()
 def insert_product_attribute_and_options(doc):
 	try:
-		if isinstance(doc, string_types):
+		if isinstance(doc, str):
 			doc = json.loads(doc)
 		for item in doc:
 			if item.get('product_attribute') and item.get('attribute'):
@@ -2639,10 +2629,8 @@ def insert_product_attribute_and_options(doc):
 				attr.quantity= item.get('quantity')
 				if item.get('name'):
 					attr.save()
-					frappe.db.commit()
 				else:
 					attr.insert()
-					frappe.db.commit()
 				if item.get('attroptions'):
 					for opt in item.get('attroptions'):
 						if opt.get('name'):
@@ -2670,10 +2658,8 @@ def insert_product_attribute_and_options(doc):
 							docs.available_datetime = opt.get('available_datetime')
 						if opt.get('name'):
 							docs.save()
-							frappe.db.commit()
 						else:
 							docs.insert()
-							frappe.db.commit()
 		return doc
 	except Exception:
 		frappe.log_error(frappe.get_traceback(), "Error in doctype.product.insert_product_attribute_and_options") 
@@ -2853,7 +2839,6 @@ def update_whoose_search(self):
 @frappe.whitelist()
 def delete_combination(dt, dn):
 	frappe.delete_doc(dt, dn)
-	frappe.db.commit()
 
 def update_attr_options():
 	attribute_option = DocType('Product Attribute Option')
@@ -2924,7 +2909,6 @@ def update_product_variant_combinations():
 					"price": p_doc.price})
 			if combinations:
 				p_doc.save(ignore_permissions=True)
-				frappe.db.commit()
 
 
 def generate_combinations(product_id,attributes):
@@ -3014,7 +2998,6 @@ def update_attr_options_unique_names():
 				frappe.db.set_value("Product Attribute Option",x.name,
 						"unique_name",p_doc.scrub(frappe.db.get_value("Product Attribute",
 						x.attribute,"attribute_name").lstrip())+"_"+p_doc.scrub(x.option_value.lstrip()))
-			frappe.db.commit()
 
 
 def delete_whoose_data(self):
