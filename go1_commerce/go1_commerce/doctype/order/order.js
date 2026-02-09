@@ -12,7 +12,6 @@ frappe.ui.form.on('Order', {
             frm.set_value("status","Completed");
             frm.save('Update');
         }
-        order_detail_html_render(frm);
         validate_order_items(frm);
         validate_shipping_method(frm)
         validate_workflow(frm)
@@ -20,9 +19,6 @@ frappe.ui.form.on('Order', {
         validate_check_order_settings(frm)
         if (cur_frm.is_new()) {
             frm.set_df_property('commission_information_section', 'hidden', 1);
-                if (frm.check_order_settings.allow_admin_to_create_order) {
-                    frm.trigger('order_edit_options')
-                }
         }
         if (!frm.invoiceid) {
             frappe.call({
@@ -169,37 +165,8 @@ frappe.ui.form.on('Order', {
                 }
             }
         })
-        if (frm.doc.__islocal && allow_admin_to_edit == 1) {
-            frm.set_df_property('order_detail_html', 'hidden', 1)
-            frm.set_df_property('sec_2', 'hidden', 0)
-            frm.set_df_property('billing_section', 'hidden', 0)
-            frm.set_df_property('shipping_section', 'hidden', 0)
-            frm.set_df_property('sec_br', 'hidden', 0)
-            frm.set_df_property('ec', 'hidden', 0)
-            frm.set_df_property('order_item', 'readonly', 0)
-        }
-
         if (!frm.doc.__islocal) {
             frm.set_df_property('order_item', 'readonly', 1)
-        }
-        if (frm.doc.__islocal && frm.check_order_settings.allow_admin_to_create_order == 1) {
-            frm.set_df_property('order_detail_html', 'hidden', 1)
-            frm.set_df_property('sec_2', 'hidden', 0)
-            frm.set_df_property('billing_section', 'hidden', 0)
-            frm.set_df_property('shipping_section', 'hidden', 0)
-            frm.set_df_property('sec_br', 'hidden', 0)
-            frm.set_df_property('ec', 'hidden', 0)
-            frm.set_df_property('order_item', 'readonly', 0)
-            frm.set_df_property('shipping_method_name', 'hidden', 0)
-            frm.set_df_property('shipping_method_name', 'readonly', 1)
-            frm.set_df_property('order_date', 'hidden', 1)
-            frm.set_df_property('discount', 'hidden', 1)
-            frm.set_df_property('shipping_method', 'hidden', 0);
-            frm.set_df_property('payment_status', 'hidden', 1);
-            frm.set_df_property('discount_coupon', 'hidden', 1);
-            frm.set_df_property('delivery_date', 'hidden', 0);
-            frm.set_df_property('delivery_slot', 'hidden', 0);
-            frm.set_value("is_admin_order", 1);
         }
         if (frm.doc.tax_breakup) {
             frm.trigger('show_tax_spliup')
@@ -615,25 +582,6 @@ frappe.ui.form.on('Order', {
         frm.return_dialog.show();
     },
     after_save: function(frm) {
-        var allow_admin_to_edit = 0
-        frappe.call({
-            method: 'go1_commerce.go1_commerce.doctype.order.order.get_order_settings',
-            args: { "order_id": frm.doc.name, 'doctype': frm.doc.doctype },
-            async: false,
-            callback: function(d) {
-                if (d.message) {
-                    if (d.message.allow_admin_to_edit_order == 1) {
-                        allow_admin_to_edit = 1
-                    }
-                }
-            }
-        })
-        frm.set_df_property('order_detail_html', 'hidden', 0)
-        frm.set_df_property('sec_2', 'hidden', 1)
-        frm.set_df_property('billing_section', 'hidden', 1)
-        frm.set_df_property('shipping_section', 'hidden', 1)
-        frm.set_df_property('sec_br', 'hidden', 1)
-        frm.set_df_property('ec', 'hidden', 1)
         cur_frm.reload_doc()
     },
     get_available_checkout_attributes: function(frm) {
@@ -824,76 +772,7 @@ frappe.ui.form.on('Order', {
         }
     },
     order_edit_options: function(frm) {
-        if (!cur_frm.doc.name.indexOf('ORD-')) {
-            if ($('[data-fieldname="order_detail_html"]').css("display") == "block") {
-                frm.set_df_property('order_detail_html', 'hidden', 1)
-                frm.set_df_property('sec_2', 'hidden', 0)
-                frm.set_df_property('billing_section', 'hidden', 0)
-                frm.set_df_property('shipping_section', 'hidden', 0)
-                frm.set_df_property('sec_br', 'hidden', 0)
-                frm.set_df_property('ec', 'hidden', 0)
-                frm.set_df_property('order_item', 'readonly', 0)
-                frm.set_df_property('shipping_method_name', 'hidden', 0)
-                frm.set_df_property('shipping_method_name', 'readonly', 1)
-                frm.set_df_property('order_date', 'hidden', 1)
-                frm.set_df_property('discount', 'hidden', 1)
-                frm.set_df_property('shipping_method', 'hidden', 0);
-                frm.set_df_property('payment_status', 'hidden', 1);
-                frm.set_df_property('discount_coupon', 'hidden', 1);
-                frm.set_df_property('delivery_date', 'hidden', 0);
-                frm.set_df_property('delivery_slot', 'hidden', 0);
-                $('button.btn.btn-primary.btn-sm.primary-action').removeClass("hide");
-                $('button.btn.btn-primary.btn-sm.primary-action').html('<i class="visible-xs octicon octicon-check"></i><span class="hidden-xs" data-label="Update">Update</span>');
-                $("button.btn.btn-secondary.btn-default.btn-sm").addClass("hide")
-                $('button[data-label="Edit%20Order"]').html("<i class='fa fa-arrow-circle-left' style='margin-right:5px'></i> Back to Order Detail");
-                if(frm.doc.order_item){
-                    for(var k=0;k<frm.doc.order_item.length;k++){
-                        $('#page-Order [data-fieldname="order_item"]').find('.grid-body .grid-row:eq('+k+') .data-row').find('[data-fieldname="varaint_txt"][data-fieldtype="Select"]').click();
-                        $('#page-Order [data-fieldname="order_item"]').find('.grid-body .grid-row:eq('+k+') .data-row').find('[data-fieldname="varaint_txt"][data-fieldtype="Select"] .field-area').removeAttr("style");
-                    }
-                }
-            } else {
-                frm.set_df_property('order_detail_html', 'hidden', 0)
-                frm.set_df_property('sec_2', 'hidden', 1)
-                frm.set_df_property('billing_section', 'hidden', 1)
-                frm.set_df_property('shipping_section', 'hidden', 1)
-                frm.set_df_property('sec_br', 'hidden', 1)
-                frm.set_df_property('ec', 'hidden', 1)
-                frm.set_df_property('discount', 'hidden', 1)
-                frm.set_df_property('shipping_method_name', 'hidden', 1)
-                frm.set_df_property('shipping_method', 'hidden', 1)
-                $('button[data-label="Edit%20Order"]').html("<i class='fa fa-pencil' style='margin-right:5px'></i> Edit Order");
-                cur_frm.reload_doc()
-            }
-        }
-        else{
-                frm.set_df_property('order_detail_html', 'hidden', 1)
-                frm.set_df_property('sec_2', 'hidden', 0)
-                frm.set_df_property('billing_section', 'hidden', 0)
-                frm.set_df_property('shipping_section', 'hidden', 0)
-                frm.set_df_property('sec_br', 'hidden', 0)
-                frm.set_df_property('ec', 'hidden', 0)
-                frm.set_df_property('order_item', 'readonly', 0)
-                frm.set_df_property('shipping_method_name', 'hidden', 0)
-                frm.set_df_property('shipping_method_name', 'readonly', 1)
-                frm.set_df_property('order_date', 'hidden', 1)
-                frm.set_df_property('discount', 'hidden', 1)
-                frm.set_df_property('shipping_method', 'hidden', 0);
-                frm.set_df_property('payment_status', 'hidden', 1);
-                frm.set_df_property('discount_coupon', 'hidden', 1);
-                frm.set_df_property('delivery_date', 'hidden', 0);
-                frm.set_df_property('delivery_slot', 'hidden', 0);
-                $('button.btn.btn-primary.btn-sm.primary-action').removeClass("hide");
-                $('button.btn.btn-primary.btn-sm.primary-action').html('<i class="visible-xs octicon octicon-check"></i><span class="hidden-xs" data-label="Update">Upda<span class="alt-underline">t</span>e</span>');
-                $("button.btn.btn-secondary.btn-default.btn-sm").addClass("hide")
-                $('button[data-label="Edit%20Order"]').html("<i class='fa fa-arrow-circle-left' style='margin-right:5px'></i> Back to Order Detail");
-                if(frm.doc.order_item){
-                for(var k=0;k<frm.doc.order_item.length;k++){
-                    $('#page-Order [data-fieldname="order_item"]').find('.grid-body .grid-row:eq('+k+') .data-row').find('[data-fieldname="varaint_txt"][data-fieldtype="Select"]').click();
-                    $('#page-Order [data-fieldname="order_item"]').find('.grid-body .grid-row:eq('+k+') .data-row').find('[data-fieldname="varaint_txt"][data-fieldtype="Select"] .field-area').removeAttr("style");
-                }
-            }
-        }
+        frm.set_df_property('order_item', 'readonly', 0)
     },
     show_tax_spliup: function(frm) {
         let wrapper = $(frm.get_field('tax_splitup').wrapper).empty();
@@ -1215,16 +1094,6 @@ var getMonthName = function(month) {
     return monthName;
 }
 
-function order_detail_html_render(frm){
-    let wrapper = $(frm.get_field('order_detail_html').wrapper).empty();
-    $(frappe.render_template("dynamic_template", { order_details: frm.doc  })).appendTo(wrapper);
-    if (cur_frm.is_new()) {
-        frm.set_value("is_admin_order", 1);
-        frm.set_value("delivery_date", '');
-        frm.set_value("delivery_slot", '');
-    }
-}
-
 function validate_order_items(frm){
     setTimeout(function(){
         if(frm.doc.order_item){
@@ -1442,10 +1311,4 @@ function validate_check_order_settings(frm){
             frm.invoiceid = d.message;
         }
     })
-    if (cur_frm.is_new()) {
-        frm.set_df_property('commission_information_section', 'hidden', 1);
-            if (frm.check_order_settings.allow_admin_to_create_order) {
-                frm.trigger('order_edit_options')
-            }
-    }
 }
