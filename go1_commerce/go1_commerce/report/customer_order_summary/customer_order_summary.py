@@ -3,59 +3,65 @@
 
 import frappe
 from frappe import _
-from frappe.query_builder import DocType, Field
+from frappe.query_builder import DocType
+from frappe.query_builder.functions import Count, Sum
 
 def execute(filters=None):
-	columns, data = get_columns(),get_data(filters)
-	return columns, data
+	columns = get_columns()
+	data = get_data(filters)
+	chart = get_chart_data(data)
+	return columns, data, None, chart
 
 def get_columns():
-	col__ = []
-	col__.append(_("Customer Id")+":Link/Customers:200")
-	col__.append(_("Customer Name")+":Data:200")
-	col__.append(_("Customer Email")+":Data:250")
-	col__.append(_("Customer Phone No")+":Phone:200")
-	col__.append(_("Total Order Count")+":Data:200")
-	col__.append(_("Total Amount")+":Currency:120")
-	
-
-	return col__
+	return [
+		_("Customer Id") + ":Link/Customers:200",
+		_("Customer Name") + ":Data:200",
+		_("Customer Email") + ":Data:250",
+		_("Customer Phone No") + ":Phone:200",
+		_("Total Order Count") + ":Int:150",
+		_("Total Amount") + ":Currency:120",
+	]
 
 def get_data(filters):
-	Customer = DocType('Customer')
-	Order = DocType('Order')
+	CustomerDT = DocType('Customers')
+	OrderDT = DocType('Order')
 	query = (
-		frappe.qb.from_(Customer)
-		.select(
-			Customer.name,
-			Customer.full_name,
-			Customer.email,
-			Customer.phone,
-			frappe.qb.from_(Order)
-			.select(frappe.qb.fn.Count(Order.name))
-			.where(Order.customer == Customer.name)
-			.where(Order.docstatus == 1)
-			.as_("total_order_count"),
-			frappe.qb.from_(Order)
-			.select(frappe.qb.fn.Sum(Order.total_amount))
-			.where(Order.customer == Customer.name)
-			.where(Order.docstatus == 1)
-			.as_("total_amount")
+		frappe.qb.from_(CustomerDT)
+		.left_join(OrderDT).on(
+			(OrderDT.customer == CustomerDT.name) &
+			(OrderDT.docstatus == 1)
 		)
-		.where(Customer.customer_status == 'Approved')
+		.select(
+			CustomerDT.name,
+			CustomerDT.full_name,
+			CustomerDT.email,
+			CustomerDT.phone,
+			Count(OrderDT.name).as_("total_order_count"),
+			Sum(OrderDT.total_amount).as_("total_amount")
+		)
+		.where(CustomerDT.customer_status == 'Approved')
 	)
 	if filters.get('from_date'):
-		query = query.where(frappe.qb.from_(Order).select(frappe.qb.fn.Min(Order.order_date)) >= filters.get('from_date'))
-
+		query = query.where(OrderDT.order_date >= filters.get('from_date'))
 	if filters.get('to_date'):
-		query = query.where(frappe.qb.from_(Order).select(frappe.qb.fn.Max(Order.order_date)) <= filters.get('to_date'))
+		query = query.where(OrderDT.order_date <= filters.get('to_date'))
+	query = query.groupby(CustomerDT.name)
+	query = query.having(Count(OrderDT.name) > 0)
+	query = query.orderby(Count(OrderDT.name), order=frappe.qb.desc)
+	return query.run(as_list=True)
 
-	query = query.groupby(
-		Customer.name,
-		Customer.full_name,
-		Customer.email,
-		Customer.phone
-	)
+def get_chart_data(data):
+	if not data:
+		return None
 
-	result = query.run(as_list=True)
-	return result
+	labels = [row[1] or row[0] for row in data[:20]]
+	values = [float(row[5] or 0) for row in data[:20]]
+
+	return {
+		"data": {
+			"labels": labels,
+			"datasets": [{"name": _("Total Spend"), "values": values}]
+		},
+		"type": "bar",
+		"colors": ["#36A2EB"]
+	}

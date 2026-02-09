@@ -2,93 +2,64 @@
 # For license information, please see license.txt
 
 import frappe
-from frappe.query_builder import DocType,  Order
-from frappe.query_builder.functions import  Sum
+from frappe import _
+from frappe.query_builder import DocType
+from frappe.query_builder.functions import Sum
 
 def execute(filters=None):
-	columns, data = [], []
 	columns = get_columns()
 	data = best_selling(filters)
-	return columns, data
+	chart = get_chart_data(data)
+	return columns, data, None, chart
 
 def get_columns():
-	
-	return[
-			"Product Id" + ":Link/Product:180",
-			"Product Name" + ":Data:200",
-			"SKU" + ":Data:200",
-			"Sold Qty" + ":Int:180"
-		]
+	return [
+		_("Product Id") + ":Link/Product:180",
+		_("Product Name") + ":Data:200",
+		_("SKU") + ":Data:200",
+		_("Sold Qty") + ":Int:180",
+	]
 
-def best_selling(filters):	
+def best_selling(filters):
 	Product = DocType("Product")
 	OrderItem = DocType("Order Item")
-	Orders = DocType("Order")
+	OrderDT = DocType("Order")
 	query = (
 		frappe.qb.from_(Product)
 		.left_join(OrderItem).on(OrderItem.item == Product.name)
-		.left_join(Orders).on(Orders.name == OrderItem.parent)
+		.left_join(OrderDT).on(OrderDT.name == OrderItem.parent)
 		.select(
 			Product.name,
 			Product.item,
 			Product.sku,
 			Sum(OrderItem.quantity).as_('qty')
 		)
-		.where(Orders.payment_status == "Paid")
+		.where(OrderDT.payment_status == "Paid")
+		.where(OrderDT.docstatus == 1)
 	)
-	
 	if filters.get('from_date'):
-		query = query.where(Orders.order_date >= filters.get('from_date'))
+		query = query.where(OrderDT.order_date >= filters.get('from_date'))
 	if filters.get('to_date'):
-		query = query.where(Orders.order_date <= filters.get('to_date'))
-	query = query.groupby(Product.name)
-	query = query.having(Sum(OrderItem.quantity) > 0)
-	query = query.orderby(Sum(OrderItem.quantity), order=Order.desc)
-	return query.run(as_dict=True)
-
-def get_items():
-	Product = DocType("Product")
-	OrderItem = DocType("Order Item")	
+		query = query.where(OrderDT.order_date <= filters.get('to_date'))
 	query = (
-		frappe.qb.from_(Product)
-		.left_join(OrderItem).on((OrderItem.item == Product.name )&(OrderItem.parenttype == "Order"))
-		.select(Product.name)
-		.groupby(Product.name)
+		query.groupby(Product.name)
 		.having(Sum(OrderItem.quantity) > 0)
+		.orderby(Sum(OrderItem.quantity), order=frappe.qb.desc)
 	)
-	result = query.run(as_dict=True)
-	return result
+	return query.run(as_list=True)
 
-def get_chart_data(items,data):
-	
-	if not items:
-		items = []
-	datasets = []
-	for item in items:
-		if item:
-			Product = DocType("Product")
-			OrderItem = DocType("Order Item")
-			query = (
-				frappe.qb.from_(Product)
-				.left_join(OrderItem).on((OrderItem.item == Product.name )&(OrderItem.parenttype == "Order"))
-				.select(Sum('tabOrder Item.quantity').as_('qty'))
-				.where(Product.name == item[0])
-				.groupby(Product.name)
-				.having(Sum(OrderItem.quantity) > 0)
-				.orderby(Sum(OrderItem.quantity), order=Order.desc)
-			)
-			total_order = query.run(as_dict=True)
-			if total_order:
-				data = total_order[0][0]
-			else:
-				data = []
-			datasets.append(data)
-	
-	chart = {
+def get_chart_data(data):
+	if not data:
+		return None
+
+	labels = [row[1] or row[0] for row in data[:20]]
+	values = [int(row[3] or 0) for row in data[:20]]
+
+	return {
 		"data": {
-			'labels': items,
-			'datasets': [{'name': 'Qty','values': datasets}]
-		}
+			"labels": labels,
+			"datasets": [{"name": _("Qty Sold"), "values": values}]
+		},
+		"type": "bar",
+		"colors": ["#FF6F61"]
 	}
-	chart["type"] = "line"
-	return chart

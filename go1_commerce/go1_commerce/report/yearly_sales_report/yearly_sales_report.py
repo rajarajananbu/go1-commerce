@@ -4,11 +4,9 @@
 import frappe
 from frappe import _
 from frappe.query_builder import DocType, Field
-from frappe.query_builder.functions import Count, Sum
-from frappe.query_builder.functions import Function
+from frappe.query_builder.functions import Count, Sum, Function
 
 def execute(filters=None):
-	columns, data = [], []
 	columns = get_columns(filters)
 	data = get_data(filters)
 	chart = get_chart_data(filters)
@@ -23,64 +21,59 @@ def get_columns(filters):
 	]
 
 def get_data(filters):
-	Order = DocType('Order')
-	conditions = (Order.docstatus == 1) & (Order.payment_status == 'Paid')
+	OrderDT = DocType('Order')
+	conditions = (OrderDT.docstatus == 1) & (OrderDT.payment_status == 'Paid')
 	if filters.get('year'):
-		conditions &= Function('YEAR', Order.order_date).as_('years')
+		conditions = conditions & (Function('YEAR', OrderDT.order_date) == int(filters.get('year')))
 	if filters.get('from_date'):
-		conditions &= Order.order_date >= filters.get('from_date')
+		conditions = conditions & (OrderDT.order_date >= filters.get('from_date'))
 	if filters.get('to_date'):
-		conditions &= Order.order_date <= filters.get('to_date')
+		conditions = conditions & (OrderDT.order_date <= filters.get('to_date'))
 	query = (
-		frappe.qb.from_(Order)
+		frappe.qb.from_(OrderDT)
 		.select(
-			Function('MONTHNAME', Order.order_date).as_('month'),
-			Count(Order.name),
-			Sum(Order.total_amount),
-			Order.payment_method_name
+			Function('MONTHNAME', OrderDT.order_date).as_('month'),
+			Count(OrderDT.name).as_('total_orders'),
+			Sum(OrderDT.total_amount).as_('total_sales'),
+			OrderDT.payment_method_name
 		)
 		.where(conditions)
-		.groupby(Function('MONTHNAME',Order.order_date))
-		.orderby(Order.creation)
+		.groupby(Function('MONTH', OrderDT.order_date))
+		.orderby(Function('MONTH', OrderDT.order_date))
 	)
-	data = query.run(as_list=True)
-	return data
+	return query.run(as_list=True)
 
 def get_chart_data(filters):
-	labels = datasets = []
-	data = get_chart_data_source(filters)
-	labels = [x[0] for x in data]
-	value = [x[1] for x in data]
-	datasets.append({
-		"title": "Sales",
-		"values": value
-		})
-	return {
-		"data": {
-			'labels': labels,
-			'datasets': datasets
-		},
-		"type": "bar",
-		"colors": ['red']
-	}
-
-def get_chart_data_source(filters):
-	Order = DocType('Order')
-	months_query = ' UNION ALL '.join(f"SELECT {i} AS month" for i in range(1, 13))
-	months_table = f'({months_query}) AS months'
-	conditions = (Order.docstatus == 1)
+	OrderDT = DocType('Order')
+	month_list = ['January','February','March','April','May','June','July','August','September','October','November','December']
+	conditions = (OrderDT.docstatus == 1) & (OrderDT.payment_status == 'Paid')
 	if filters.get('year'):
-		conditions &= Function('YEAR', Order.order_date) == filters.get('year')
+		conditions = conditions & (Function('YEAR', OrderDT.order_date) == int(filters.get('year')))
+	if filters.get('from_date'):
+		conditions = conditions & (OrderDT.order_date >= filters.get('from_date'))
+	if filters.get('to_date'):
+		conditions = conditions & (OrderDT.order_date <= filters.get('to_date'))
+
 	query = (
-		frappe.qb.from_(months_table)
-		.left_join(Order)
-		.on(Function('MONTH', Order.order_date) == Field('months.month'))
+		frappe.qb.from_(OrderDT)
 		.select(
-			Function('MONTHNAME', Function('STR_TO_DATE', Field('months.month'), '%m')).as_('month_name'),
-			Sum(Order.total_amount).as_('total_amount')
+			Function('MONTHNAME', OrderDT.order_date).as_('month'),
+			Sum(OrderDT.total_amount).as_('total_amount')
 		)
 		.where(conditions)
-		.groupby(Field('months.month'))
+		.groupby(Function('MONTH', OrderDT.order_date))
+		.orderby(Function('MONTH', OrderDT.order_date))
 	)
-	data = query.run(as_list=True)
-	return data
+	data = query.run(as_dict=True)
+
+	month_totals = {row.month: float(row.total_amount or 0) for row in data}
+	values = [month_totals.get(m, 0) for m in month_list]
+
+	return {
+		"data": {
+			"labels": month_list,
+			"datasets": [{"name": _("Sales"), "values": values}]
+		},
+		"type": "bar",
+		"colors": ["#4CAF50"]
+	}

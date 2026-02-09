@@ -6,88 +6,67 @@ from frappe import _
 from frappe.query_builder import DocType
 
 def execute(filters=None):
-	columns, data = [], []
 	columns = get_columns(filters)
 	data = get_data(filters)
-	return columns, data
+	chart = get_chart_data(filters)
+	return columns, data, None, chart
+
 def get_columns(filters):
-	columns =  [
+	return [
 		_("Order Id") + ":Link/Order:120",
 		_("Order Date") + ":Date:120",
 		_("Order Status") + ":Data:120",
 		_("Payment Status") + ":Data:120",
 		_("Payment Method") + ":Data:120",
-		]
-	columns.append(_("Customer Name") + ":Data:180")
-	columns.append(_("Customer Email") + ":Data:180")
-	columns.append(_("Customer Phone") + ":Data:180")
-	columns.append(_("Order Total") + ":Currency:120")
-	return columns
+		_("Customer Name") + ":Data:180",
+		_("Customer Email") + ":Data:180",
+		_("Customer Phone") + ":Data:140",
+		_("Order Total") + ":Currency:120",
+	]
 
 def get_data(filters):
-	Order = DocType("Order")
-	date_condition = Order.order_date == filters.get('date')
+	OrderDT = DocType("Order")
 	query = (
-		frappe.qb.from_(Order)
+		frappe.qb.from_(OrderDT)
 		.select(
-			Order.name,
-			Order.order_date,
-			Order.status,
-			Order.payment_status,
-			Order.payment_method_name,
-			Order.customer_name,
-			Order.customer_email,
-			Order.phone,
-			Order.total_amount
+			OrderDT.name,
+			OrderDT.order_date,
+			OrderDT.status,
+			OrderDT.payment_status,
+			OrderDT.payment_method_name,
+			OrderDT.customer_name,
+			OrderDT.customer_email,
+			OrderDT.phone,
+			OrderDT.total_amount
 		)
-		.where(
-			(Order.docstatus == 1) &
-			date_condition
-		)
+		.where(OrderDT.docstatus == 1)
+		.where(OrderDT.order_date == filters.get('date'))
 	)
-	data = query.run(as_list=True)
-	return data
+	return query.run(as_list=True)
 
-def get_orders(filters):
-	Order = DocType("Order")
-	date_condition = Order.order_date == filters.get('date')
+def get_chart_data(filters):
+	OrderDT = DocType("Order")
 	query = (
-		frappe.qb.from_(Order)
-		.select(Order.name)
-		.where(
-			(Order.docstatus == 1) &
-			date_condition
+		frappe.qb.from_(OrderDT)
+		.select(
+			OrderDT.name,
+			OrderDT.total_amount
 		)
+		.where(OrderDT.docstatus == 1)
+		.where(OrderDT.order_date == filters.get('date'))
+		.orderby(OrderDT.creation)
 	)
 	data = query.run(as_list=True)
-	return data
+	if not data:
+		return None
 
-def get_chart_data(orders,data, filters):
-	if not orders:
-		orders = []
-	datasets = []
-	Order = DocType("Order")
-	for item in orders:
-		if item:
-			date_condition = Order.order_date == filters.get('date')
-			query = (
-				frappe.qb.from_(Order)
-				.select(Order.total_amount)
-				.where(
-					(Order.docstatus == 1) &
-					(Order.name == item[0]) &
-					date_condition
-				)
-			)
-			data = query.run(as_list=True)
-			if data:
-				datasets.append(data[0][0])
-	chart = {
+	labels = [row[0] for row in data]
+	values = [float(row[1] or 0) for row in data]
+
+	return {
 		"data": {
-			'labels': orders,
-			'datasets': [{'name': 'Order','values': datasets}]
-		}
+			"labels": labels,
+			"datasets": [{"name": _("Order Total"), "values": values}]
+		},
+		"type": "bar"
 	}
-	chart["type"] = "line"
-	return chart
-

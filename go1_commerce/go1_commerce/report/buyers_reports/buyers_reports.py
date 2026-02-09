@@ -3,8 +3,7 @@
 
 import frappe
 from frappe import _
-from frappe.query_builder import DocType, Field, Subquery
-from frappe.query_builder import Case
+from frappe.query_builder import DocType
 from frappe.query_builder.functions import IfNull, Count, Concat
 
 def execute(filters=None):
@@ -12,92 +11,76 @@ def execute(filters=None):
 	return columns, data
 
 def get_columns():
-	col__ = []
-	col__.append(_("Shopify Id")+":Data:100")
-	col__.append(_("First Name")+":Data:150")
-	col__.append(_("Last Name")+":Data:100")
-	col__.append(_("Email")+":Email:200")
-	col__.append(_("Phone")+":Phone:150")
-	col__.append(_("Created")+":Date:150")
-	col__.append(_("Updated")+":Date:150")
-	col__.append(_("Orders Count")+":Data:150")
-	col__.append(_("Last Ordered Id")+":Data:150")
-	col__.append(_("Shop Location")+":Data:200")
-	col__.append(_("Route")+":Data:150")
-	col__.append(_("Area")+":Data:150")
-	col__.append(_("Sub Area")+":Data:200")
-	col__.append(_("Store Front Along")+":Attach Image:300")
-	col__.append(_("Store Operator")+":Attach Image:300")
-	col__.append(_("Store Close Up")+":Attach Image:300")
-	col__.append(_("Store Name")+":Data:150")
-	col__.append(_("Longitude")+":Geolocation:150")
-	col__.append(_("Latitude")+":Geolocation:150")
-	col__.append(_("Center Name")+":Data:150")
-	col__.append(_("Center Type")+":Data:150")
-	col__.append(_("Pincode")+":Data:150")
-	col__.append(_("City")+":Data:150")
-	col__.append(_("State")+":Data:150")
-	col__.append(_("Country")+":Data:150")
-	col__.append(_("Alternate Phone Number")+":Phone:150")
-	col__.append(_("GST Number")+":Data:150")
-	col__.append(_("Address")+":Data:300")
-	col__.append(_("Customer Type")+":Data:150")
-	col__.append(_("Establishment Year")+":Data:150")
-
-	return col__
+	return [
+		_("Customer ID") + ":Link/Customers:150",
+		_("First Name") + ":Data:150",
+		_("Last Name") + ":Data:100",
+		_("Email") + ":Data:200",
+		_("Phone") + ":Phone:150",
+		_("Created") + ":Date:120",
+		_("Updated") + ":Date:120",
+		_("Orders Count") + ":Int:100",
+		_("Last Ordered Id") + ":Link/Order:150",
+		_("Store Name") + ":Data:150",
+		_("Address") + ":Data:300",
+		_("City") + ":Data:120",
+		_("State") + ":Data:120",
+		_("Country") + ":Data:120",
+		_("Pincode") + ":Data:100",
+		_("Customer Type") + ":Data:150",
+	]
 
 def get_datas(filters):
-	customers = DocType("Customers")
-	route_sub_areas = DocType("Route Sub Areas")
-	sub_area = DocType("Sub Area")
-	orders = DocType("Order")
-	orders_count_subquery = (
-		frappe.qb.from_(orders)
-		.select(orders.customer.count())
-		.where(orders.customer_email == Field("C.email"))
-	)
-	last_ordered_id_subquery = (
-		frappe.qb.from_(orders)
-		.select(orders.name.max())
-		.where(orders.customer_email == Field("C.email"))
-	)
+	CustomerDT = DocType("Customers")
+	OrderDT = DocType("Order")
+
 	query = (
-		frappe.qb.from_(customers)
-		.inner_join(route_sub_areas).on(route_sub_areas.parent == customers.route)
-		.inner_join(sub_area).on(sub_area.sub_area_code == route_sub_areas.sub_area)
-		.select(
-			customers.name.as_("shopify_id"),
-			customers.first_name.as_("first_name"),
-			customers.last_name.as_("last_name"),
-			customers.email.as_("email"),
-			customers.phone.as_("phone"),
-			customers.creation.as_("created"),
-			customers.modified.as_("updated"),
-			customers.store_front_image.as_("store_front_along"),
-			customers.store_operator_image.as_("store_operator"),
-			customers.store_closeup_image.as_("store_closeup"),
-			customers.business_latitude.as_("latitude"),
-			customers.business_longitude.as_("longitude"),
-			customers.city,
-			customers.state,
-			customers.country,
-			customers.zipcode,
-			customers.gst_in.as_("gst_number"),
-			IfNull(customers.route, 0).as_("route"),
-			customers.center.as_("center_name"),
-			customers.alternate_phone.as_("alternate_phone_number"),
-			customers.business_landmark.as_("land_mark"),
-			customers.business_zip.as_("pincode"),
-			customers.address,
-			customers.business_type.as_("customer_type"),
-			customers.store_name,
-			Concat(customers.business_latitude, ',', customers.business_longitude).as_("shop_location"),
-			sub_area.area_name.as_("area"),
-			sub_area.sub_area.as_("sub_area"),
-			customers.business_type.as_("center_type"),
-			orders_count_subquery.as_("orders_count"),
-			last_ordered_id_subquery.as_("last_ordered_id")
+		frappe.qb.from_(CustomerDT)
+		.left_join(OrderDT).on(
+			(OrderDT.customer == CustomerDT.name) &
+			(OrderDT.docstatus == 1)
 		)
-		.groupby(customers.email)
+		.select(
+			CustomerDT.name,
+			CustomerDT.first_name,
+			CustomerDT.last_name,
+			CustomerDT.email,
+			CustomerDT.phone,
+			CustomerDT.creation,
+			CustomerDT.modified,
+			Count(OrderDT.name).as_("orders_count"),
+			frappe.qb.terms.ValueWrapper("").as_("last_ordered_id"),
+			CustomerDT.store_name,
+			CustomerDT.address,
+			CustomerDT.city,
+			CustomerDT.state,
+			CustomerDT.country,
+			CustomerDT.zipcode,
+			CustomerDT.business_type,
+		)
+		.groupby(CustomerDT.name)
+		.orderby(CustomerDT.creation, order=frappe.qb.desc)
 	)
+
+	if filters and filters.get('from_date'):
+		query = query.where(CustomerDT.creation >= filters.get('from_date'))
+	if filters and filters.get('to_date'):
+		query = query.where(CustomerDT.creation <= filters.get('to_date'))
+
 	result = query.run(as_dict=True)
+
+	for row in result:
+		last_order = frappe.db.get_value(
+			"Order",
+			{"customer": row.name, "docstatus": 1},
+			"name",
+			order_by="creation desc"
+		)
+		row["last_ordered_id"] = last_order or ""
+
+	return [[
+		r.name, r.first_name, r.last_name, r.email, r.phone,
+		r.creation, r.modified, r.orders_count, r.last_ordered_id,
+		r.store_name, r.address, r.city, r.state, r.country,
+		r.zipcode, r.business_type
+	] for r in result]
