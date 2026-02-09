@@ -3,14 +3,13 @@
 
 import frappe
 from frappe import _
-from frappe.query_builder import DocType, Field, functions as fn
-from frappe.query_builder.functions import Function
-from frappe.query_builder.functions import Count, Sum
+from frappe.query_builder import DocType
+from frappe.query_builder.functions import Function, Sum
 
-month_list = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
+month_list = ["January", "February", "March", "April", "May", "June",
+			  "July", "August", "September", "October", "November", "December"]
 
 def execute(filters=None):
-	columns, data = [], []
 	columns = get_columns()
 	data = get_data(filters)
 	chart = get_chart(data)
@@ -46,11 +45,10 @@ def get_columns():
 
 def get_data(filters):
 	data = []
-	
 	income_entries = get_payment_entries(filters, "Receive")
 	expense_entries = get_payment_entries(filters, "Pay")
 	for item in month_list:
-		income, expense, balance = 0, 0, 0
+		income, expense = 0, 0
 		check_income = next((x for x in income_entries if x.month == item), None)
 		check_expense = next((x for x in expense_entries if x.month == item), None)
 		if check_income:
@@ -66,54 +64,43 @@ def get_payment_entries(filters, payment_type):
 	query = (
 		frappe.qb.from_(PaymentEntry)
 		.select(
-			Function('MONTHNAME',PaymentEntry.posting_date).as_('month'),
+			Function('MONTHNAME', PaymentEntry.posting_date).as_('month'),
 			Sum(PaymentEntry.paid_amount).as_('amount')
 		)
 		.where(PaymentEntry.docstatus == 1)
 		.where(PaymentEntry.payment_type == payment_type)
 	)
 	if filters.get('year'):
-		query.where(
-			Function('YEAR', 'posting_date') == filters.get('year')
+		query = query.where(
+			Function('YEAR', PaymentEntry.posting_date) == int(filters.get('year'))
 		)
-	query = query.groupby(Function('MONTHNAME',PaymentEntry.posting_date))
-	result = query.run(as_dict=True)
-	return result
-
-
+	query = query.groupby(Function('MONTHNAME', PaymentEntry.posting_date))
+	return query.run(as_dict=True)
 
 def get_chart(data):
 	income_list = [x[1] for x in data]
 	expense_list = [x[2] for x in data]
-	datasets = [
-		{
-			"title": "Income",
-			"name": "Income",
-			"values": income_list
-		},
-		{
-			"title": "Expense",
-			"name": "Expense",
-			"values": expense_list
-		}
-	]
-
 	return {
 		"data": {
 			"labels": month_list,
-			"datasets": datasets
+			"datasets": [
+				{"name": _("Income"), "values": income_list},
+				{"name": _("Expense"), "values": expense_list}
+			]
 		},
-		"type": "bar"
+		"type": "bar",
+		"colors": ["#4CAF50", "#FF5252"]
 	}
 
 @frappe.whitelist()
 def get_year_list():
-	year_list_query = (
-	    frappe.qb.from_("tabPayment Entry")
-	    .select(Function('YEAR', 'posting_date'))
-	    .distinct()
-	    .orderby(Function('YEAR', 'posting_date').desc())
+	PaymentEntry = DocType('Payment Entry')
+	query = (
+		frappe.qb.from_(PaymentEntry)
+		.select(Function('YEAR', PaymentEntry.posting_date).as_('year'))
+		.where(PaymentEntry.docstatus == 1)
+		.distinct()
+		.orderby(Function('YEAR', PaymentEntry.posting_date), order=frappe.qb.desc)
 	)
-	year_list = year_list_query.run(as_dict=True)
-	year_list = [row['YEAR(posting_date)'] for row in year_list]
-	return year_list
+	result = query.run(as_dict=True)
+	return [str(row.year) for row in result] if result else [str(frappe.utils.getdate().year)]

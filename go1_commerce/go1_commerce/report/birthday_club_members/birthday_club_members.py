@@ -1,40 +1,33 @@
-import frappe, os, re, json
-from frappe.website.website_generator import WebsiteGenerator
-from frappe.utils import touch_file, encode
+import frappe
 from frappe import _
-from frappe.utils import flt, getdate, nowdate, get_url, add_days, now
-from datetime import datetime
-from pytz import timezone
-from frappe.utils import strip, get_files_path
-import pytz
-from urllib.parse import unquote
-from frappe.model.document import Document
+from frappe.query_builder import DocType, Field
+from frappe.query_builder.functions import IfNull, Count, Function
 from go1_commerce.utils.setup import get_settings_from_domain
-from frappe.query_builder import DocType, Field, Subquery
-from frappe.query_builder import Case
-from frappe.query_builder.functions import IfNull, Count
 
 def execute(filters=None):
-	columns, data = [], []
 	columns = get_columns()
 	data = get_data(filters)
 	return columns, data
 
 def get_data(filters):
-	birthday_club_settings = get_settings_from_domain('BirthDay Club Setting')
+	try:
+		birthday_club_settings = get_settings_from_domain('BirthDay Club Setting')
+	except Exception:
+		return []
+
+	birthday_club_member = DocType("BirthDay Club Member")
+	customers = DocType("Customers")
+
 	if birthday_club_settings.beneficiary_method == "Discount":
-		birthday_club_member = DocType("BirthDay Club Member")
-		customers = DocType("Customers")
 		discount_usage_history = DocType("Discount Usage History")
 		subquery = (
 			frappe.qb.from_(discount_usage_history)
 			.select(discount_usage_history.order_id)
 			.where(discount_usage_history.parent == birthday_club_settings.discount_id)
-			.where(discount_usage_history.customer == Field("C.name"))
-			.orderby(discount_usage_history.creation.desc())
+			.where(discount_usage_history.customer == customers.name)
+			.orderby(discount_usage_history.creation, order=frappe.qb.desc)
 			.limit(1)
 		)
-		
 		query = (
 			frappe.qb.from_(birthday_club_member)
 			.inner_join(customers).on(birthday_club_member.email == customers.email)
@@ -42,37 +35,76 @@ def get_data(filters):
 				birthday_club_member.email,
 				birthday_club_member.day,
 				birthday_club_member.month,
-				Function("SUBSTRING_INDEX", birthday_club_member.creation, ' ', 1).as_("creation_date"),
-				subquery.as_("Order ID")
+				Function("DATE", birthday_club_member.creation).as_("creation_date"),
+				subquery.as_("order_id")
 			)
-			.orderby(birthday_club_member.creation.desc())
+			.orderby(birthday_club_member.creation, order=frappe.qb.desc)
 		)
-		result = query.run(as_dict=True)
-		return result
+		return query.run(as_list=True)
+
+	elif birthday_club_settings.beneficiary_method == "Wallet":
+		wallet_txn = DocType("Wallet Transaction")
+		subquery = (
+			frappe.qb.from_(wallet_txn)
+			.select(Function("DATE", wallet_txn.creation))
+			.where(wallet_txn.customer == customers.name)
+			.where(wallet_txn.type == "Birthday Credit")
+			.orderby(wallet_txn.creation, order=frappe.qb.desc)
+			.limit(1)
+		)
+		query = (
+			frappe.qb.from_(birthday_club_member)
+			.inner_join(customers).on(birthday_club_member.email == customers.email)
+			.select(
+				birthday_club_member.email,
+				birthday_club_member.day,
+				birthday_club_member.month,
+				Function("DATE", birthday_club_member.creation).as_("creation_date"),
+				subquery.as_("wallet_credited_on")
+			)
+			.orderby(birthday_club_member.creation, order=frappe.qb.desc)
+		)
+		return query.run(as_list=True)
+
+	elif birthday_club_settings.beneficiary_method == "Points":
+		query = (
+			frappe.qb.from_(birthday_club_member)
+			.inner_join(customers).on(birthday_club_member.email == customers.email)
+			.select(
+				birthday_club_member.email,
+				birthday_club_member.day,
+				birthday_club_member.month,
+				Function("DATE", birthday_club_member.creation).as_("creation_date"),
+			)
+			.orderby(birthday_club_member.creation, order=frappe.qb.desc)
+		)
+		return query.run(as_list=True)
+
+	return []
 
 def get_columns():
-	birthday_club_settings = get_settings_from_domain('BirthDay Club Setting')
+	try:
+		birthday_club_settings = get_settings_from_domain('BirthDay Club Setting')
+	except Exception:
+		return [
+			_("Email") + ":Data:200",
+			_("Birth Day") + ":Data:100",
+			_("Birth Month") + ":Data:100",
+			_("Registered On") + ":Date:120",
+		]
+
+	columns = [
+		_("Email") + ":Data:200",
+		_("Birth Day") + ":Data:100",
+		_("Birth Month") + ":Data:100",
+		_("Registered On") + ":Date:120",
+	]
+
 	if birthday_club_settings.beneficiary_method == "Discount":
-		return[
-				"Email" + ":Data:200",
-				"Birth Day" + ":Data:200",
-				"Birth Month" + ":Data:200",
-				"Registered On" + ":Date",
-				"Redeem For Order"+ ":Link/Order:180",
-			]
-	if birthday_club_settings.beneficiary_method == "Wallet":
-		return[
-				"Email" + ":Data:200",
-				"Birth Day" + ":Data:200",
-				"Birth Month" + ":Data:200",
-				"Registered On" + ":Date",
-				"Wallet Amount Credited On"+ ":Date",
-			]
-	if birthday_club_settings.beneficiary_method == "Wallet":
-		return[
-				"Email" + ":Data:200",
-				"Birth Day" + ":Data:200",
-				"Birth Month" + ":Data:200",
-				"Registered On" + ":Date",
-				"Points Credited On"+ ":Date",
-			]
+		columns.append(_("Redeem For Order") + ":Link/Order:180")
+	elif birthday_club_settings.beneficiary_method == "Wallet":
+		columns.append(_("Wallet Amount Credited On") + ":Date:180")
+	elif birthday_club_settings.beneficiary_method == "Points":
+		columns.append(_("Points Credited On") + ":Date:180")
+
+	return columns

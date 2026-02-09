@@ -4,6 +4,17 @@
 
 frappe.query_reports["Buyers Reports"] = {
 	"filters": [
-
+		{
+			"fieldname": "from_date",
+			"fieldtype": "Date",
+			"label": __("From Date"),
+			"default": ""
+		},
+		{
+			"fieldname": "to_date",
+			"label": __("To Date"),
+			"fieldtype": "Date",
+			"default": ""
+		}
 	]
 };

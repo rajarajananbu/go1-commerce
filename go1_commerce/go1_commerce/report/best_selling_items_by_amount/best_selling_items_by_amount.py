@@ -2,96 +2,65 @@
 # For license information, please see license.txt
 
 import frappe
-from frappe.query_builder import DocType, Field, Order
+from frappe import _
+from frappe.query_builder import DocType
 from frappe.query_builder.functions import Sum
 
 def execute(filters=None):
-	columns, data = [], []
 	columns = get_columns()
 	data = best_selling(filters)
-	return columns, data
+	chart = get_chart_data(data)
+	return columns, data, None, chart
 
 def get_columns():
-	
-	return[
-			"Product Id" + ":Link/Product:150",
-			"Product Name" + ":Data:200",
-			"Amount" + ":Currency:180"
-		]
+	return [
+		_("Product Id") + ":Link/Product:150",
+		_("Product Name") + ":Data:200",
+		_("Amount") + ":Currency:180",
+	]
 
-def best_selling(filters):	
-	product = DocType("Product")
-	order_item = DocType("Order Item")
-	order = DocType("Order")
+def best_selling(filters):
+	Product = DocType("Product")
+	OrderItem = DocType("Order Item")
+	OrderDT = DocType("Order")
 	query = (
-		frappe.qb.from_(product)
-		.left_join(order_item) 
-		.on((order_item.item == product.name) & (order_item.parenttype == "Order"))
-		.left_join(order) 
-		.on((order_item.parent == order.name))
-		.select(
-			product.name,
-			product.item,
-			Sum(order_item.amount).as_("amt")
+		frappe.qb.from_(Product)
+		.left_join(OrderItem).on(
+			(OrderItem.item == Product.name) &
+			(OrderItem.parenttype == "Order")
 		)
-		.where(order.payment_status == 'Paid')
+		.left_join(OrderDT).on(OrderItem.parent == OrderDT.name)
+		.select(
+			Product.name,
+			Product.item,
+			Sum(OrderItem.amount).as_("amt")
+		)
+		.where(OrderDT.payment_status == 'Paid')
+		.where(OrderDT.docstatus == 1)
 	)
 	if filters.get('from_date'):
-		query = query.where(order.order_date >= filters.get('from_date'))
+		query = query.where(OrderDT.order_date >= filters.get('from_date'))
 	if filters.get('to_date'):
-		query = query.where(order.order_date <= filters.get('to_date'))
+		query = query.where(OrderDT.order_date <= filters.get('to_date'))
 	query = (
-		query.groupby(product.name)
-		.having(Sum(order_item.amount) > 0)
-		.orderby(Sum(order_item.amount), order=Order.desc)
+		query.groupby(Product.name)
+		.having(Sum(OrderItem.amount) > 0)
+		.orderby(Sum(OrderItem.amount), order=frappe.qb.desc)
 	)
-	return query.run(as_dict=True)
+	return query.run(as_list=True)
 
-def get_items():	
-	product = DocType("Product")
-	order_item = DocType("Order Item")
-	query = (
-		frappe.qb.from_(product)
-		.left_join(order_item)
-		.on((order_item.item == product.name) & (order_item.parenttype == "Order"))
-		.select(product.name)
-		.groupby(product.name)
-		.having(Sum(order_item.amount) > 0)
-	)
-	return query.run(as_dict=True)
+def get_chart_data(data):
+	if not data:
+		return None
 
-def get_chart_data(items,data):
-	
-	if not items:
-		items = []
-	datasets = []
-	for item in items:
-		if item:
-			
-			product = DocType("Product")
-			order_item = DocType("Order Item")
-			query = (
-				frappe.qb.from_(product)
-				.left_join(order_item)
-				.on((order_item.item == product.name) & (order_item.parenttype == "Order"))
-				.select(Sum(order_item.amount).as_("amt"))
-				.where(product.name == item_name)
-				.groupby(product.name)
-				.having(Sum(order_item.amount) > 0)
-				.orderby(Sum(order_item.amount),order=Order.desc)
-			)
-			total_order = query.run(as_list=True)
-			if total_order:
-				data = total_order[0][0]
-			else:
-				data = []
-			datasets.append(data)
-	
-	chart = {
+	labels = [row[1] or row[0] for row in data[:20]]
+	values = [float(row[2] or 0) for row in data[:20]]
+
+	return {
 		"data": {
-			'labels': items,
-			'datasets': [{'name': 'Qty','values': datasets}]
-		}
+			"labels": labels,
+			"datasets": [{"name": _("Revenue"), "values": values}]
+		},
+		"type": "bar",
+		"colors": ["#FF9F43"]
 	}
-	chart["type"] = "line"
-	return chart
