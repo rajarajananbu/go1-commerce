@@ -1,8 +1,11 @@
 """
 Populate test data for Go1 Commerce.
 
-Usage:
+Usage (shell):
     bench --site <sitename> execute go1_commerce.go1_commerce.populate_test_data.run
+
+Usage (browser console - logged in as Administrator):
+    frappe.call({method: "go1_commerce.go1_commerce.populate_test_data.run", callback: function(r) { console.log(r); frappe.msgprint("Test data created!"); }})
 """
 
 import frappe
@@ -10,6 +13,7 @@ import random
 from datetime import datetime, timedelta
 
 
+@frappe.whitelist()
 def run():
     frappe.flags.in_test_data = True
     try:
